@@ -1,9 +1,10 @@
 import logging
 import os
+import time
 
 import requests
 from lxml import html
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_delay, wait_exponential
 
 DATA_FOLDER = "data"
 os.makedirs(DATA_FOLDER, exist_ok=True)
@@ -28,21 +29,26 @@ def log_retry_attempt(retry_state):
     attempt = retry_state.attempt_number
     error = retry_state.outcome.exception()
     logger.warning(
-        f"Tentative n°{attempt} échouée ({error}). Attente de {wait_time:.1f}s...")
+        f"Tentative n°{attempt} échouée ({error}). \nAttente de {wait_time:.1f}s...")
 
 
-@retry(stop=stop_after_attempt(7), wait=wait_exponential(max=10), before_sleep=log_retry_attempt, reraise=True)
+@retry(
+    stop=stop_after_delay(360),
+    wait=wait_exponential(max=60),
+    before_sleep=log_retry_attempt,
+    reraise=True
+)
 def fetch_url(url: str) -> html.HtmlElement:
     """
     Fetches the content of a URL and returns an lxml tree.
-    Retries up to 7 times with exponential backoff if the request fails.
+    Retries up to 10 times with exponential backoff if the request fails.
 
     Args:
         url (str): The URL to fetch.
     Returns:
         lxml.html.HtmlElement: The parsed HTML tree of the response content.
     Raises:
-        Exception: If the request fails after 7 attempts.
+        Exception: If the request fails after 10 attempts.
     """
     response = requests.get(url, headers=HEADERS)
 
@@ -54,19 +60,23 @@ def fetch_url(url: str) -> html.HtmlElement:
     return tree
 
 
-@retry(stop=stop_after_attempt(7), wait=wait_exponential(max=10), before_sleep=log_retry_attempt, reraise=True)
+@retry(
+    stop=stop_after_delay(360),
+    wait=wait_exponential(max=60),
+    before_sleep=log_retry_attempt,
+    reraise=True
+)
 def download_pgn(pid: str, gid: str, download_url: str) -> None:
     """
     Downloads a PGN file for a given game and saves it to the data folder.
-    Retries up to 7 times with exponential backoff if the download fails.
-
+    Retries up to 10 times with exponential backoff if the download fails.
     Args:
         pid (str): Player ID.
         gid (str): Game ID.
         download_url (str): URL to download the PGN file from.
 
     Raises:
-        Exception: If the download fails after 7 attempts.
+        Exception: If the download fails after 10 attempts.
     """
     os.makedirs(os.path.join(DATA_FOLDER, pid), exist_ok=True)
     if os.path.exists(os.path.join(DATA_FOLDER, pid, f"{gid}.pgn")):
@@ -80,6 +90,7 @@ def download_pgn(pid: str, gid: str, download_url: str) -> None:
     with open(file_path, "wb") as f:
         f.write(response.content)
     logger.info(f"Downloaded game {gid} for player {player_id}")
+    time.sleep(1)
 
 
 def fetch_chessgames(player_id: str) -> None:
