@@ -178,4 +178,5 @@ pyrightconfig.json
 *.csv
 *.yaml
 *.pt
+*.pgn
 Notes/
