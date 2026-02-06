@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 import requests
 from lxml import html
@@ -120,6 +121,7 @@ def fetch_chessgames(player_id: str) -> None:
             download_url = f"https://www.chessgames.com/njs/api/game/downloadPGN/{gid}"
             download_pgn(player_id, gid, download_url)
         page_id += 1
+        time.sleep(2)
 
 
 if __name__ == "__main__":
