@@ -1,3 +1,4 @@
+import logging
 import os
 
 import requests
@@ -13,19 +14,35 @@ HEADERS = {
     'Referer': 'https://www.google.com/'
 }
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(max=10))
+
+def log_retry_attempt(retry_state):
+    """Logue chaque tentative de retry avec le temps d'attente."""
+    wait_time = retry_state.next_action.sleep
+    attempt = retry_state.attempt_number
+    error = retry_state.outcome.exception()
+    logger.warning(
+        f"Tentative n°{attempt} échouée ({error}). Attente de {wait_time:.1f}s...")
+
+
+@retry(stop=stop_after_attempt(7), wait=wait_exponential(max=10), before_sleep=log_retry_attempt, reraise=True)
 def fetch_url(url: str) -> html.HtmlElement:
     """
     Fetches the content of a URL and returns an lxml tree.
-    Retries up to 3 times with exponential backoff if the request fails.
+    Retries up to 7 times with exponential backoff if the request fails.
 
     Args:
         url (str): The URL to fetch.
     Returns:
         lxml.html.HtmlElement: The parsed HTML tree of the response content.
     Raises:
-        Exception: If the request fails after 3 attempts.
+        Exception: If the request fails after 7 attempts.
     """
     response = requests.get(url, headers=HEADERS)
 
@@ -37,11 +54,11 @@ def fetch_url(url: str) -> html.HtmlElement:
     return tree
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(max=10))
+@retry(stop=stop_after_attempt(7), wait=wait_exponential(max=10), before_sleep=log_retry_attempt, reraise=True)
 def download_pgn(pid: str, gid: str, download_url: str) -> None:
     """
     Downloads a PGN file for a given game and saves it to the data folder.
-    Retries up to 3 times with exponential backoff if the download fails.
+    Retries up to 7 times with exponential backoff if the download fails.
 
     Args:
         pid (str): Player ID.
@@ -49,9 +66,12 @@ def download_pgn(pid: str, gid: str, download_url: str) -> None:
         download_url (str): URL to download the PGN file from.
 
     Raises:
-        Exception: If the download fails after 3 attempts.
+        Exception: If the download fails after 7 attempts.
     """
     os.makedirs(os.path.join(DATA_FOLDER, pid), exist_ok=True)
+    if os.path.exists(os.path.join(DATA_FOLDER, pid, f"{gid}.pgn")):
+        logger.info(f"PGN for game {gid} already exists. Skipping download.")
+        return
     response = requests.get(download_url, headers=HEADERS)
     if response.status_code != 200:
         raise Exception(
@@ -59,6 +79,7 @@ def download_pgn(pid: str, gid: str, download_url: str) -> None:
     file_path = os.path.join(DATA_FOLDER, pid, f"{gid}.pgn")
     with open(file_path, "wb") as f:
         f.write(response.content)
+    logger.info(f"Downloaded game {gid} for player {player_id}")
 
 
 def fetch_chessgames(player_id: str) -> None:
@@ -77,7 +98,7 @@ def fetch_chessgames(player_id: str) -> None:
         table = tree.xpath(XPath_table)
 
         if not table:
-            print("No more games found.")
+            logger.info("No more games found.")
             break
 
         table = table[0]
@@ -89,7 +110,6 @@ def fetch_chessgames(player_id: str) -> None:
             gid = link[0].split("gid=")[-1]
             download_url = f"https://www.chessgames.com/njs/api/game/downloadPGN/{gid}"
             download_pgn(player_id, gid, download_url)
-            print(f"Downloaded game {gid} for player {player_id}")
         page_id += 1
 
 
