@@ -1,6 +1,5 @@
 import logging
 import os
-import time
 
 import requests
 from lxml import html
@@ -90,7 +89,6 @@ def download_pgn(pid: str, gid: str, download_url: str) -> None:
     with open(file_path, "wb") as f:
         f.write(response.content)
     logger.info(f"Downloaded game {gid} for player {player_id}")
-    time.sleep(1)
 
 
 def fetch_chessgames(player_id: str) -> None:
