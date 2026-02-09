@@ -125,5 +125,16 @@ def fetch_chessgames(player_id: str) -> None:
 
 
 if __name__ == "__main__":
-    player_id = "15940"  # Kasparov's player ID
-    fetch_chessgames(player_id)
+    player_dict = {
+        "15940": "Kasparov",
+        "47544": "Capablanca",
+        "16149": "Petrosian",
+        "20719": "Karpov",
+        "19233": "Fischer",
+        "14380": "Tal"
+    }
+
+    for player_id, player_name in player_dict.items():
+        logger.info(
+            f"Fetching games for player {player_name} (ID: {player_id})")
+        fetch_chessgames(player_id)
