@@ -44,6 +44,12 @@ if __name__ == "__main__":
                     f"Player {player_name} not found in game headers for file {filename}. Skipping.")
                 continue
 
+            result = header.get("Result", "")
+            if result not in ["1-0", "0-1", "1/2-1/2"]:
+                logger.warning(
+                    f"Unexpected game result '{result}' in file {filename} for player {player_name}. Skipping.")
+                continue
+
             logger.info(f"Processing game {filename} for player {player_name}")
             board = game.board()
             for move in game.mainline_moves():
@@ -56,10 +62,11 @@ if __name__ == "__main__":
                         "player_name": player_name,
                         "player_color": color,
                         "fen": fen,
-                        "move": move_uci
+                        "move": move_uci,
+                        "result": result
                     })
                 board.push(move)
 
     df = pd.DataFrame(
-        data, columns=["player_name", "player_color", "fen", "move"])
+        data, columns=["player_name", "player_color", "fen", "move", "result"])
     df.to_parquet(os.path.join(DATA_FOLDER, "chess_positions.parquet"))
