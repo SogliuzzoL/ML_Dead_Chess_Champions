@@ -180,4 +180,6 @@ pyrightconfig.json
 *.pt
 *.pgn
 *.parquet
+*.png
+*.pdf
 Notes/

@@ -25,3 +25,4 @@ player_dict = {
 }
 
 DATASET_PATH = os.path.join(DATA_FOLDER, "chess_positions.parquet")
+MAIA_RESULT_PATH = os.path.join(DATA_FOLDER, "maia_result.parquet")

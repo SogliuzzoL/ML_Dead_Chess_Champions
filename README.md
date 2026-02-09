@@ -14,6 +14,8 @@ Tous les commentaires de ce dépôt ont été générés par **Github Copilot**.
 
 Le `logging` ainsi que le `HEADERS` dans `fetch_games` est généré par **Gemini**.
 
-Le README est en grande partie généré par **Github Copilot**
+Le README est en grande partie généré par **Github Copilot**.
 
-Les messages de commit ont été généré par **Github Copilot**
+Les messages de commit ont été généré par **Github Copilot**.
+
+Le fichier `plot_result.py` est entierement généré par **Gemini**.
