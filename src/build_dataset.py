@@ -6,7 +6,18 @@ from chess import pgn
 
 from config import DATA_FOLDER, DATASET_PATH, logger, player_dict
 
-if __name__ == "__main__":
+
+def build_dataset():
+    """
+    Construit un dataset à partir des fichiers PGN téléchargés pour chaque joueur.
+    Le dataset contient les colonnes suivantes :
+        - player_name : le nom du joueur (ex: "Capablanca")
+        - player_color : la couleur du joueur dans la partie ("white" ou "black")
+        - fen : la position de l'échiquier au format FEN avant le coup joué
+        - move : le coup joué au format UCI (ex: "e2e4")
+        - result : le résultat de la partie ("1-0" pour une victoire des blancs, "0-1" pour une victoire des noirs, "1/2-1/2" pour une nulle)
+    Le dataset est sauvegardé au format Parquet à l'emplacement spécifié par DATASET_PATH.
+    """
     data = []
     for player_id, player_name in player_dict.items():
         logger.info(
@@ -70,3 +81,7 @@ if __name__ == "__main__":
     df = pd.DataFrame(
         data, columns=["player_name", "player_color", "fen", "move", "result"])
     df.to_parquet(DATASET_PATH)
+
+
+if __name__ == "__main__":
+    build_dataset()
