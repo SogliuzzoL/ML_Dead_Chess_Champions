@@ -4,7 +4,7 @@ import chess
 import pandas as pd
 from chess import pgn
 
-from config import DATA_FOLDER, logger, player_dict
+from config import DATA_FOLDER, DATASET_PATH, logger, player_dict
 
 if __name__ == "__main__":
     data = []
@@ -69,4 +69,4 @@ if __name__ == "__main__":
 
     df = pd.DataFrame(
         data, columns=["player_name", "player_color", "fen", "move", "result"])
-    df.to_parquet(os.path.join(DATA_FOLDER, "chess_positions.parquet"))
+    df.to_parquet(DATASET_PATH)

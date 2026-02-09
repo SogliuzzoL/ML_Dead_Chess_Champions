@@ -1,4 +1,5 @@
 import logging
+import os
 
 DATA_FOLDER = "data"
 HEADERS = {
@@ -22,3 +23,5 @@ player_dict = {
     "14380": "Tal",
     "15940": "Kasparov",
 }
+
+DATASET_PATH = os.path.join(DATA_FOLDER, "chess_positions.parquet")
