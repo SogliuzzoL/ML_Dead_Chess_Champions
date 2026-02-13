@@ -16,6 +16,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 player_dict = {
+    "12183": "Ivanchuk",
+    "14220": "Timman",
+    "11227": "Larsen",
+    "14568": "Portisch",
+    "13755": "Beliavsky",
+    "12112": "Andersson",
+    "12181": "Short",
     "79773": "Deschapelles",
     "31576": "Philidor",
     "16002": "Morphy",

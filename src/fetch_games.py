@@ -68,16 +68,17 @@ def download_pgn(pid: str, gid: str, download_url: str) -> None:
     """
     os.makedirs(os.path.join(DATA_FOLDER, pid), exist_ok=True)
     if os.path.exists(os.path.join(DATA_FOLDER, pid, f"{gid}.pgn")):
-        logger.info(f"PGN for game {gid} already exists. Skipping download.")
+        logger.info(
+            f"PGN game {gid} for player {pid} already exists. Skipping download.")
         return
     response = requests.get(download_url, headers=HEADERS)
     if response.status_code != 200:
         raise Exception(
-            f"Failed to download PGN for game {gid} with status code: {response.status_code}")
+            f"Failed to download PGN game {gid} for player {pid} with status code: {response.status_code}")
     file_path = os.path.join(DATA_FOLDER, pid, f"{gid}.pgn")
     with open(file_path, "wb") as f:
         f.write(response.content)
-    logger.info(f"Downloaded game {gid} for player {player_id}")
+    logger.info(f"Downloaded PGN game {gid} for player {pid}")
 
 
 def fetch_chessgames(player_id: str) -> None:
