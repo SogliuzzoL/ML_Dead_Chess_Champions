@@ -19,6 +19,7 @@ def build_dataset():
     Le dataset est sauvegardé au format Parquet à l'emplacement spécifié par DATASET_PATH.
     """
     data = []
+    data_count = {}
     for player_id, player_name in player_dict.items():
         logger.info(
             f"Converting PGN files for player {player_name} (ID: {player_id})")
@@ -61,6 +62,11 @@ def build_dataset():
                     f"Unexpected game result '{result}' in file {filename} for player {player_name}. Skipping.")
                 continue
 
+            if player_name not in data_count:
+                data_count[player_name] = 1
+            else:
+                data_count[player_name] += 1
+
             logger.info(f"Processing game {filename} for player {player_name}")
             board = game.board()
             for move in game.mainline_moves():
@@ -74,12 +80,13 @@ def build_dataset():
                         "player_color": color,
                         "fen": fen,
                         "move": move_uci,
-                        "result": result
+                        "result": result,
+                        "game_id": filename.split(".")[0]
                     })
                 board.push(move)
 
     df = pd.DataFrame(
-        data, columns=["player_name", "player_color", "fen", "move", "result"])
+        data, columns=["player_name", "player_color", "fen", "move", "result", "game_id"])
     df.to_parquet(DATASET_PATH)
 
 
