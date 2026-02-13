@@ -2,7 +2,7 @@ import os
 
 import pandas as pd
 
-from config import DATA_FOLDER, DATASET_PATH, MAIA_RESULT_PATH, player_dict
+from config import DATA_FOLDER, DATASET_PATH, MAIA_RESULT_PATH
 from utils_plot import plot_bar_distribution
 
 if __name__ == "__main__":

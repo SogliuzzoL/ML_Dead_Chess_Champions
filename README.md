@@ -18,4 +18,4 @@ Le README est en grande partie généré par **Github Copilot**.
 
 Les messages de commit ont été généré par **Github Copilot**.
 
-Le fichier `plot_result.py` est entierement généré par **Gemini**.
+Le fichier `utils_plot.py` est entierement généré par **Gemini**.
