@@ -1,4 +1,5 @@
 import pandas as pd
+import torch
 from maia2 import inference, model
 
 from config import DATASET_PATH, MAIA_RESULT_PATH, logger
@@ -7,7 +8,8 @@ if __name__ == "__main__":
     data = []
     df = pd.read_parquet(DATASET_PATH)
     logger.info("Loading model...")
-    rapid_model = model.from_pretrained("rapid", "cpu")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    rapid_model = model.from_pretrained("rapid", device)
 
     df["active_elo"] = 2500
     df["opponent_elo"] = 2500

@@ -1,0 +1,36 @@
+from flask import Flask, jsonify, render_template, request
+from flask_cors import CORS
+
+from config import player_dict
+from engine import MaiaEngine
+
+app = Flask(__name__, static_folder='static', template_folder='../templates')
+CORS(app)
+
+engine = MaiaEngine()
+
+
+@app.route("/")
+def index():
+    return render_template("index.html", players=player_dict)
+
+
+@app.route("/get-move", methods=["POST"])
+def get_move():
+    data = request.get_json()
+    try:
+        move_uci, move_dict = engine.predict_move(
+            data["fen"],
+            int(data["active_elo"]),
+            int(data["opponent_elo"])
+        )
+        return jsonify({
+            "move": move_uci,
+            "probabilities": move_dict
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
