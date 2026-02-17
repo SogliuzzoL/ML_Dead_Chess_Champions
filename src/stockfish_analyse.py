@@ -1,7 +1,5 @@
 import chess.engine
-import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 
 from core.config import (
     DATASET_PATH,
