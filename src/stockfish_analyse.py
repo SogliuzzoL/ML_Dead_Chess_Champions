@@ -58,20 +58,20 @@ if __name__ == "__main__":
     for player in player_list:
         logger.info(f"Analyzing games for player: {player}")
         player_df = df[df["player_name"] == player]
-        for j, game_id in enumerate(player_df["game_id"].unique()):
+        for game_id in player_df["game_id"].unique():
             game_df = player_df[player_df["game_id"] == game_id]
             logger.info(
-                f"Analyzing game ID: {game_id} with {len(game_df)} moves")
-            for i, (_, row) in enumerate(game_df.iterrows()):
-                logger.info(
-                    f"Analyzing move {i + 1}/{len(game_df)} for game ID: {game_id}")
+                f"Analyzing game ID: {game_id} for player {player} with {len(game_df)} moves")
+            for _, row in game_df.iterrows():
                 fen = row["fen"]
                 move_uci = row["move"]
+
                 cpl = analyse_with_stockfish(fen, move_uci)
                 if cpl is not None:
                     result.append({
                         "player": player,
-                        "move_number": i,
+                        "game_id": game_id,
+                        "round": row["round"],
                         "cpl": cpl
                     })
 
