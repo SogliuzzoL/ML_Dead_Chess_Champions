@@ -16,4 +16,4 @@ COPY templates/ ./templates/
 RUN mkdir -p data
 
 EXPOSE 5000
-CMD ["python", "src/app.py"]
+CMD ["python", "src/web/app.py"]

@@ -2,7 +2,7 @@ import pandas as pd
 import torch
 from maia2 import inference, model
 
-from config import DATASET_PATH, MAIA_RESULT_PATH, logger
+from core.config import DATASET_PATH, MAIA_RESULT_PATH, logger
 
 if __name__ == "__main__":
     data = []

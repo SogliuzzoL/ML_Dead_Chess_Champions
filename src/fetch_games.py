@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 
@@ -6,7 +5,7 @@ import requests
 from lxml import html
 from tenacity import retry, stop_after_delay, wait_exponential
 
-from config import DATA_FOLDER, HEADERS, logger, player_dict
+from core.config import DATA_FOLDER, HEADERS, logger, player_dict
 
 os.makedirs(DATA_FOLDER, exist_ok=True)
 

@@ -4,7 +4,7 @@ import chess
 import pandas as pd
 from chess import pgn
 
-from config import DATA_FOLDER, DATASET_PATH, logger, player_dict
+from core.config import DATA_FOLDER, DATASET_PATH, logger, player_dict
 
 
 def build_dataset():

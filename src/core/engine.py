@@ -1,10 +1,5 @@
-from unittest import result
-
-import pandas as pd
 import torch
 from maia2 import inference, model
-
-from config import logger
 
 
 class MaiaEngine:
