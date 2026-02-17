@@ -183,3 +183,4 @@ pyrightconfig.json
 *.png
 *.pdf
 Notes/
+stockfish_model/

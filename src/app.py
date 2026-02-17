@@ -1,12 +1,11 @@
 from flask import Flask, jsonify, render_template, request
-from flask_cors import CORS
 
 from core.config import player_dict
 from core.engine import MaiaEngine
 
 app = Flask(__name__, static_folder='static',
-            template_folder='templates')
-CORS(app)
+            template_folder='../templates')
+
 
 engine = MaiaEngine()
 
