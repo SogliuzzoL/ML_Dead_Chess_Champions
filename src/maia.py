@@ -2,7 +2,7 @@ import pandas as pd
 import torch
 from maia2 import inference, model
 
-from core.config import DATASET_PATH, MAIA_RESULT_PATH, logger
+from core.config import DATASET_PATH, MAIA_COL_ORDER, MAIA_RESULT_PATH, logger
 
 if __name__ == "__main__":
     data = []
@@ -14,12 +14,10 @@ if __name__ == "__main__":
     df["active_elo"] = 2500
     df["opponent_elo"] = 2500
 
-    cols_ordered = ["fen", "move", "active_elo", "opponent_elo"]
-
     for player in df["player_name"].unique():
         player_mask = df["player_name"] == player
 
-        df_ready = df.loc[player_mask, cols_ordered].copy()
+        df_ready = df.loc[player_mask, MAIA_COL_ORDER].copy()
 
         logger.info(
             f"Running inference for player {player} with {len(df_ready)} samples.")

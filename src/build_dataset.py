@@ -4,7 +4,13 @@ import chess
 import pandas as pd
 from chess import pgn
 
-from core.config import DATA_FOLDER, DATASET_PATH, logger, player_dict
+from core.config import (
+    DATA_FOLDER,
+    DATASET_COL_ORDER,
+    DATASET_PATH,
+    logger,
+    player_dict,
+)
 
 
 def build_dataset():
@@ -76,17 +82,17 @@ def build_dataset():
                     move_uci = move.uci()
 
                     data.append({
+                        "game_id": filename.split(".")[0],
+                        "round": board.fullmove_number,
                         "player_name": player_name,
                         "player_color": color,
                         "fen": fen,
                         "move": move_uci,
-                        "result": result,
-                        "game_id": filename.split(".")[0]
+                        "result": result
                     })
                 board.push(move)
 
-    df = pd.DataFrame(
-        data, columns=["player_name", "player_color", "fen", "move", "result", "game_id"])
+    df = pd.DataFrame(data, columns=DATASET_COL_ORDER)
     df.to_parquet(DATASET_PATH)
 
 
