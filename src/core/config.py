@@ -47,3 +47,5 @@ DATASET_COL_ORDER = ["game_id", "round", "player_name",
 STOCKFISH_MODEL_PATH = os.path.join("stockfish_model", "stockfish")
 STOCKFISH_CPL_ANALYSE_PATH = os.path.join(
     DATA_FOLDER, "stockfish_cpl_analysis.parquet")
+
+MAIA_EMBEDDINGS_PATH = os.path.join(DATA_FOLDER, "maia_style_embeddings.npy")
