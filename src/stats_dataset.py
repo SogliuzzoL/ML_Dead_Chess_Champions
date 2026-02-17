@@ -6,33 +6,33 @@ from core.config import DATA_FOLDER, DATASET_PATH, MAIA_RESULT_PATH
 from visualization.utils_plot import plot_bar_distribution
 
 if __name__ == "__main__":
-    # Plot de la distribution du nombre de coups joués par champion historique
+    # Plot the distribution of the number of moves played per historical champion
     df = pd.read_parquet(DATASET_PATH)
     player_counts = df["player_name"].value_counts()
     plot_bar_distribution(
         player_counts,
-        title="Distribution du nombre de coups joués par champion historique",
-        xlabel="Champions Historiques",
-        ylabel="Nombre de Coups",
+        title="Distribution of moves played per historical champion",
+        xlabel="Historical Champions",
+        ylabel="Number of Moves",
         output_filename=os.path.join(DATA_FOLDER, "player_distribution.pdf")
     )
 
-    # Plot de la distribution du nombre de parties par champion historique
+    # Plot the distribution of the number of games per historical champion
     game_counts = df.groupby("player_name")["game_id"].nunique()
     plot_bar_distribution(
         game_counts,
-        title="Distribution du nombre de parties par champion historique",
-        xlabel="Champions Historiques",
-        ylabel="Nombre de Parties",
+        title="Distribution of games per historical champion",
+        xlabel="Historical Champions",
+        ylabel="Number of Games",
         output_filename=os.path.join(DATA_FOLDER, "player_game_count.pdf")
     )
 
-    # Plot de la précision (move-accuracy) de Maia-2 par champion historique
+    # Plot Maia-2 move accuracy per historical champion
     df = pd.read_parquet(MAIA_RESULT_PATH)
     plot_bar_distribution(
         df.set_index("player")["maia_accuracy"],
-        title="Précision (move-accuracy) de Maia-2 par champion historique",
-        xlabel="Champions Historiques",
-        ylabel="Précision (move-accuracy) de Maia-2",
+        title="Maia-2 move accuracy per historical champion",
+        xlabel="Historical Champions",
+        ylabel="Maia-2 move accuracy",
         output_filename=os.path.join(DATA_FOLDER, "maia_accuracy.pdf")
     )

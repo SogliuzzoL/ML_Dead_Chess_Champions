@@ -11,12 +11,12 @@ os.makedirs(DATA_FOLDER, exist_ok=True)
 
 
 def log_retry_attempt(retry_state):
-    """Logue chaque tentative de retry avec le temps d'attente."""
+    """Log each retry attempt with the wait time."""
     wait_time = retry_state.next_action.sleep
     attempt = retry_state.attempt_number
     error = retry_state.outcome.exception()
     logger.warning(
-        f"Tentative n°{attempt} échouée ({error}). \nAttente de {wait_time:.1f}s...")
+        f"Attempt #{attempt} failed ({error}). \nWaiting {wait_time:.1f}s...")
 
 
 @retry(

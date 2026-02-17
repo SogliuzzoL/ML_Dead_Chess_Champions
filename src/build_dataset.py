@@ -9,14 +9,14 @@ from core.config import DATA_FOLDER, DATASET_PATH, logger, player_dict
 
 def build_dataset():
     """
-    Construit un dataset à partir des fichiers PGN téléchargés pour chaque joueur.
-    Le dataset contient les colonnes suivantes :
-        - player_name : le nom du joueur (ex: "Capablanca")
-        - player_color : la couleur du joueur dans la partie ("white" ou "black")
-        - fen : la position de l'échiquier au format FEN avant le coup joué
-        - move : le coup joué au format UCI (ex: "e2e4")
-        - result : le résultat de la partie ("1-0" pour une victoire des blancs, "0-1" pour une victoire des noirs, "1/2-1/2" pour une nulle)
-    Le dataset est sauvegardé au format Parquet à l'emplacement spécifié par DATASET_PATH.
+    Builds a dataset from downloaded PGN files for each player.
+    The dataset contains the following columns:
+        - player_name : the player's name (e.g., "Capablanca")
+        - player_color : the player's color in the game ("white" or "black")
+        - fen : the board position in FEN format before the move is played
+        - move : the move played in UCI format (e.g., "e2e4")
+        - result : the game result ("1-0" for a White win, "0-1" for a Black win, "1/2-1/2" for a draw)
+    The dataset is saved in Parquet format at the location specified by DATASET_PATH.
     """
     data = []
     data_count = {}

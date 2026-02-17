@@ -6,8 +6,8 @@ import pandas as pd
 def plot_bar_distribution(
     data,
     title="Distribution",
-    xlabel="Catégories",
-    ylabel="Valeurs",
+    xlabel="Categories",
+    ylabel="Values",
     output_filename="plot.pdf",
     log_scale=False,
     color="#4C72B0",
@@ -15,20 +15,20 @@ def plot_bar_distribution(
     rotate_xticks=45
 ):
     """
-    Génère un graphique en barres académique (style LaTeX).
+    Generates an academic-style bar chart (LaTeX style).
 
     Args:
-        data (dict, pd.Series, ou pd.DataFrame): 
-            - Si dict: {'Joueur A': 10, 'Joueur B': 5}
-            - Si Series: index=catégories, values=hauteurs
-        title (str): Titre du graphique.
-        xlabel (str): Label de l'axe X.
-        ylabel (str): Label de l'axe Y.
-        output_filename (str): Nom du fichier de sortie (ex: 'graph.pdf').
-        log_scale (bool): Si True, l'axe Y est logarithmique.
-        color (str): Code hex ou nom de couleur.
-        figsize (tuple): Dimensions de la figure (largeur, hauteur).
-        rotate_xticks (int): Angle de rotation des labels X.
+        data (dict, pd.Series, or pd.DataFrame): 
+            - If dict: {'Player A': 10, 'Player B': 5}
+            - If Series: index=categories, values=heights
+        title (str): Chart title.
+        xlabel (str): X-axis label.
+        ylabel (str): Y-axis label.
+        output_filename (str): Output filename (e.g., 'graph.pdf').
+        log_scale (bool): If True, the Y axis is logarithmic.
+        color (str): Hex code or color name.
+        figsize (tuple): Figure dimensions (width, height).
+        rotate_xticks (int): Rotation angle for X labels.
     """
 
     plt.rcParams.update({
@@ -79,4 +79,4 @@ def plot_bar_distribution(
 
     plt.tight_layout()
     plt.savefig(output_filename, format="pdf", dpi=300)
-    print(f"Graphique sauvegardé sous : {output_filename}")
+    print(f"Plot saved to: {output_filename}")
