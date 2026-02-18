@@ -110,6 +110,7 @@
             <button onclick="startGame()">START GAME</button>
         </div>
         <button onclick="alert(get_pgn())" style="margin-top: 10px; background-color: #2980b9;">Show PGN</button>
+        <button onclick="download_pgn()" style="margin-top: 10px; background-color: #2980b9;">Download PGN</button>
     </div>
 
     <div id="board"></div>
@@ -129,6 +130,19 @@
 
         function get_pgn() {
             return game.pgn();
+        }
+
+        function download_pgn() {
+            const pgn = game.pgn();
+            const blob = new Blob([pgn], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'game.pgn';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function updateStatus() {
