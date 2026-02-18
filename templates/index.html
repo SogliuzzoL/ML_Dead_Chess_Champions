@@ -109,6 +109,7 @@
             </select>
             <button onclick="startGame()">START GAME</button>
         </div>
+        <button onclick="alert(get_pgn())" style="margin-top: 10px; background-color: #2980b9;">Show PGN</button>
     </div>
 
     <div id="board"></div>
@@ -125,6 +126,10 @@
     <script>
         var board = null;
         var game = new Chess();
+
+        function get_pgn() {
+            return game.pgn();
+        }
 
         function updateStatus() {
             let status = '';

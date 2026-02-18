@@ -1,9 +1,8 @@
 from flask import Flask, jsonify, render_template, request
 
-from core.config import player_dict
 from core.engine import MaiaEngine
 
-app = Flask(__name__, static_folder='static',
+app = Flask(__name__,
             template_folder='../templates')
 
 
@@ -12,7 +11,7 @@ engine = MaiaEngine()
 
 @app.route("/")
 def index():
-    return render_template("index.html", players=player_dict)
+    return render_template("index.html")
 
 
 @app.route("/get-move", methods=["POST"])
