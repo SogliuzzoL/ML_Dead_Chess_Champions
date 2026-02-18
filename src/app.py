@@ -19,7 +19,7 @@ def index():
 def get_move():
     data = request.get_json()
     try:
-        move_uci, move_dict = engine.predict_move(
+        move_uci, move_dict = engine.predict_proba_move(
             data["fen"],
             int(data["active_elo"]),
             int(data["opponent_elo"])
