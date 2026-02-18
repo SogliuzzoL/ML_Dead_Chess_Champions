@@ -5,7 +5,7 @@ import pandas as pd
 from cuml import UMAP
 from sklearn.model_selection import train_test_split
 
-from core.config import DATA_FOLDER, DATASET_PATH, MAIA_EMBEDDINGS_PATH, logger
+from core.config import DATASET_PATH, MAIA_EMBEDDINGS_PATH, UMAP_RESULT_PATH, logger
 
 if __name__ == "__main__":
     embeddings = np.load(MAIA_EMBEDDINGS_PATH, mmap_mode='r')
@@ -28,4 +28,4 @@ if __name__ == "__main__":
     test_umap_df = pd.DataFrame(X_test_umap, columns=["UMAP1", "UMAP2"])
     test_umap_df["player_name"] = y_test.values
 
-    test_umap_df.to_parquet(os.path.join(DATA_FOLDER, "test_umap.parquet"))
+    test_umap_df.to_parquet(UMAP_RESULT_PATH)
