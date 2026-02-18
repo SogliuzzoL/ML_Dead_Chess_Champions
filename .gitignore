@@ -182,5 +182,6 @@ pyrightconfig.json
 *.parquet
 *.png
 *.pdf
+*.npy
 Notes/
 stockfish_model/
