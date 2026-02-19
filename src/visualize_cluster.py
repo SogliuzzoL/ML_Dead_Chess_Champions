@@ -13,15 +13,9 @@ if __name__ == "__main__":
                           output_filename=f"{DATA_FOLDER}/style_comparison.pdf")
 
     kasparov_embeddings = df[df["player_name"]
-                             == "Kasparov"][["UMAP1", "UMAP2"]].values
-    timman_embeddings = df[df["player_name"]
-                           == "Timman"][["UMAP1", "UMAP2"]].values
-    morphy_embeddings = df[df["player_name"]
-                           == "Morphy"][["UMAP1", "UMAP2"]].values
-
-    kasparov_embeddings = kasparov_embeddings[:100]
-    timman_embeddings = timman_embeddings[:100]
-    morphy_embeddings = morphy_embeddings[:100]
+                             == "Kasparov"][["UMAP1", "UMAP2"]]
+    timman_embeddings = df[df["player_name"] == "Timman"][["UMAP1", "UMAP2"]]
+    morphy_embeddings = df[df["player_name"] == "Morphy"][["UMAP1", "UMAP2"]]
 
     distance = wasserstein_distance_nd(kasparov_embeddings, timman_embeddings)
     logger.info(

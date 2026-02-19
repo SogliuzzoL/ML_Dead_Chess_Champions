@@ -35,7 +35,8 @@ if __name__ == "__main__":
     df = pd.read_parquet(DATASET_PATH)
     df["active_elo"] = 2500
     df["opponent_elo"] = 2500
-    df_ready = df.loc[:, MAIA_COL_ORDER].copy()
+
+    df_ready: pd.DataFrame = df.loc[:, MAIA_COL_ORDER].copy()
 
     inference.inference_batch(df_ready, maia_model, True, 128, 4)
 

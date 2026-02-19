@@ -3,6 +3,8 @@
 
 ## Installation
 
+Python 3.10.19 is used for this project, as it is incompatible with newer versions due to specific Maia-2 dependencies.
+
 ### Dependencies
 
 To install dependencies, run:

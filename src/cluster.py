@@ -1,11 +1,13 @@
-import os
-
+import cuml.accel as accel
 import numpy as np
 import pandas as pd
-from cuml import UMAP
 from sklearn.model_selection import train_test_split
+from umap import UMAP
 
 from core.config import DATASET_PATH, MAIA_EMBEDDINGS_PATH, UMAP_RESULT_PATH, logger
+
+accel.install(log_level="debug")
+
 
 if __name__ == "__main__":
     embeddings = np.load(MAIA_EMBEDDINGS_PATH, mmap_mode='r')
@@ -18,7 +20,7 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test = train_test_split(
         embeddings, df["player_name"], test_size=0.2)
 
-    umap_model = UMAP(n_components=2)
+    umap_model = UMAP(n_components=2, n_neighbors=80)
     logger.info("Fitting UMAP model to training data")
     umap_model.fit(X_train)
 
