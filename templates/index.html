@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Professional Maia-2 Client</title>
+    <title>Maia-2 Client</title>
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
     <style>
         body {
@@ -109,7 +109,7 @@
             </select>
             <button onclick="startGame()">START GAME</button>
         </div>
-        <button onclick="alert(get_pgn())" style="margin-top: 10px; background-color: #2980b9;">Show PGN</button>
+        <button onclick="alert(game.pgn())" style="margin-top: 10px; background-color: #2980b9;">Show PGN</button>
         <button onclick="download_pgn()" style="margin-top: 10px; background-color: #2980b9;">Download PGN</button>
     </div>
 
@@ -127,10 +127,6 @@
     <script>
         var board = null;
         var game = new Chess();
-
-        function get_pgn() {
-            return game.pgn();
-        }
 
         function download_pgn() {
             const pgn = game.pgn();
@@ -190,6 +186,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         fen: game.fen(),
+                        pgn: game.pgn(),
                         active_elo: isWhite ? $('#eloW').val() : $('#eloB').val(),
                         opponent_elo: isWhite ? $('#eloB').val() : $('#eloW').val()
                     })

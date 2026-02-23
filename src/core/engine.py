@@ -1,4 +1,7 @@
+import io
+
 import chess
+import chess.pgn
 import numpy as np
 import torch
 from maia2 import inference, model
@@ -25,10 +28,27 @@ class MaiaEngine:
             list(normalized_result.keys()), p=list(normalized_result.values()))
         return proba_move, result
 
+    def predict_move_without_repetition(self, fen, pgn, active_elo=2500, opponent_elo=2500):
+        board = chess.Board()
+        if pgn != '':
+            try:
+                pgn_io = io.StringIO(pgn)
+                game = chess.pgn.read_game(pgn_io)
+            except Exception:
+                game = None
+            if game is not None:
+                for move in game.mainline_moves():
+                    board.push(move)
+            else:
+                board = chess.Board(fen)
 
-if __name__ == "__main__":
-    engine = MaiaEngine()
-    board = chess.Board()
-    fen = board.fen()
-    move, proba = engine.predict_proba_move(fen)
-    print(f"Predicted move: {move} with probabilities: {proba}")
+        result, _ = inference.inference_each(
+            self.model, self.prepare, fen, active_elo, opponent_elo)
+
+        for move, _ in result.items():
+            board.push_uci(move)
+            if not board.is_repetition(2):
+                return move, result
+            board.pop()
+
+        return list(result.keys())[0], result
