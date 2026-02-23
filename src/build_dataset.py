@@ -88,6 +88,7 @@ def build_dataset():
                         "player_color": color,
                         "fen": fen,
                         "move": move_uci,
+                        "repetition": board.is_repetition(2),
                         "result": result
                     })
                 board.push(move)
