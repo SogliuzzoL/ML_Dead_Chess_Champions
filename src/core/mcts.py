@@ -4,8 +4,6 @@ import torch
 from maia2 import inference, model
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MODEL = model.from_pretrained("rapid", DEVICE)
-PREPARE = inference.prepare()
 
 
 class Node:
@@ -23,20 +21,23 @@ class Node:
     def compute_U(self, parent_visits, c_puct=1.0):
         return c_puct * self.maia_prob * np.sqrt(parent_visits) / (1 + self.visits)
 
-    def generate_child(self, fen, activ_elo, opp_elo, threshold=0.01):
+    def generate_child(self, model, prepare, fen, activ_elo, opp_elo, threshold=0.01):
         results, _ = inference.inference_each(
-            MODEL, PREPARE, fen, activ_elo, opp_elo)
+            model, prepare, fen, activ_elo, opp_elo)
         for move, prob in results.items():
             if prob > threshold:
                 self.children[move] = Node(prob)
 
 
 class MCTS:
-    def __init__(self):
+    def __init__(self, model, prepare):
+        self.model = model
+        self.prepare = prepare
         self.root = Node()
 
     def run(self, board: chess.Board, num_simulations: int, max_depth: int, threshold=0.01, penalty_value=10.0, activ_elo=2500, opp_elo=2500):
-        self.root.generate_child(board.fen(), activ_elo, opp_elo, threshold)
+        self.root.generate_child(
+            self.model, self.prepare, board.fen(), activ_elo, opp_elo, threshold)
         for _ in range(num_simulations):
             current_node = self.root
             sim_board = board.copy()
@@ -71,7 +72,7 @@ class MCTS:
 
             if depth < max_depth and not sim_board.is_game_over():
                 current_node.generate_child(
-                    sim_board.fen(), activ_elo, opp_elo, threshold)
+                    self.model, self.prepare, sim_board.fen(), activ_elo, opp_elo, threshold)
 
             for node in reversed(path):
                 node.visits += 1
