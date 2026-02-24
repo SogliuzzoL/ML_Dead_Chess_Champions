@@ -1,7 +1,7 @@
 import chess
 import numpy as np
 import torch
-from maia2 import inference, model
+from maia2 import inference
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
