@@ -59,12 +59,10 @@ class MaiaEngine:
 
         return list(result.keys())[0], result
 
-    def predict_mcts(self, fen, pgn, num_simulations=20, max_depth=4, threshold=0.05, penalty_value=10.0, active_elo=2500, opponent_elo=2500):
+    def predict_mcts(self, fen, pgn, num_simulations=50, max_depth=4, threshold=0.05, penalty_value=10.0, active_elo=2500, opponent_elo=2500):
         board = self.get_board_from_fen(fen, pgn)
         mcts = MCTS()
-        best_move = mcts.run(board, num_simulations, max_depth,
-                             threshold=threshold, penalty_value=penalty_value, activ_elo=active_elo, opp_elo=opponent_elo)
-        result, _ = inference.inference_each(
-            self.model, self.prepare, fen, active_elo, opponent_elo)
+        best_move, result = mcts.run(board, num_simulations, max_depth,
+                                     threshold=threshold, penalty_value=penalty_value, activ_elo=active_elo, opp_elo=opponent_elo)
 
         return best_move, result

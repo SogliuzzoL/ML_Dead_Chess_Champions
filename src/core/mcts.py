@@ -85,4 +85,9 @@ class MCTS:
                     max_visits = child.visits
                     best_root_move = move
 
-        return best_root_move
+        assert best_root_move is not None, "Best root move is None"
+
+        result = {move: child.maia_prob for move,
+                  child in self.root.children.items()}
+
+        return best_root_move, result
