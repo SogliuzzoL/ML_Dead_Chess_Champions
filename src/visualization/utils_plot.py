@@ -199,3 +199,60 @@ def plot_style_comparison(
     plt.tight_layout()
     plt.savefig(output_filename, format="pdf", dpi=300)
     print(f"Comparison plot saved to: {output_filename}")
+
+
+def plot_distance_heatmap(
+    df,
+    player1_col="Player1",
+    player2_col="Player2",
+    distance_col="JSDistance",
+    title="Stylistic Divergences Matrix",
+    output_filename="heatmap_distances.pdf",
+    cmap="Blues",
+    figsize=(10, 8)
+):
+    """
+    Generates an academic heatmap from a pairwise distance DataFrame.
+    """
+
+    players = pd.unique(df[[player1_col, player2_col]].values.ravel('K'))
+
+    dist_matrix = pd.DataFrame(index=players, columns=players, dtype=float)
+
+    for _, row in df.iterrows():
+        dist_matrix.loc[row[player1_col], row[player2_col]] = row[distance_col]
+        dist_matrix.loc[row[player2_col], row[player1_col]] = row[distance_col]
+
+    np.fill_diagonal(dist_matrix.values, 0.0)
+
+    plt.rcParams.update({
+        "font.serif": ["Times New Roman"],
+        "font.size": 11,
+        "axes.grid": False
+    })
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    sns.heatmap(
+        dist_matrix,
+        ax=ax,
+        annot=True,
+        fmt=".2f",
+        cmap=cmap,
+        square=True,
+        linewidths=0.5,
+        linecolor="white",
+        cbar_kws={"shrink": 0.8, "label": "Jensen,Shannon Distance"},
+        annot_kws={"size": 10, "weight": "bold"}
+    )
+
+    ax.set_title(title, pad=20, fontsize=14, fontweight="bold")
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
+    plt.setp(ax.get_yticklabels(), rotation=0)
+
+    plt.tight_layout()
+    plt.savefig(output_filename, format="pdf", dpi=300, bbox_inches="tight")
+    print(f"Heatmap successfully saved to: {output_filename}")
