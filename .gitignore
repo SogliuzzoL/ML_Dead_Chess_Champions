@@ -184,4 +184,5 @@ pyrightconfig.json
 *.pdf
 *.npy
 Notes/
-stockfish_model/
+models/
+data/

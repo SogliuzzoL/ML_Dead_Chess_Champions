@@ -2,6 +2,8 @@ import logging
 import os
 
 DATA_FOLDER = "data"
+MODEL_FOLDER = "models"
+
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -44,9 +46,10 @@ MAIA_COL_ORDER = ["fen", "move", "active_elo", "opponent_elo"]
 DATASET_COL_ORDER = ["game_id", "round", "player_name",
                      "player_color", "fen", "move", "repetition", "result"]
 
-STOCKFISH_MODEL_PATH = os.path.join("stockfish_model", "stockfish")
+STOCKFISH_MODEL_PATH = os.path.join(MODEL_FOLDER, "stockfish")
 STOCKFISH_CPL_ANALYSE_PATH = os.path.join(
     DATA_FOLDER, "stockfish_cpl_analysis.parquet")
 
 MAIA_EMBEDDINGS_PATH = os.path.join(DATA_FOLDER, "maia_style_embeddings.npy")
 UMAP_RESULT_PATH = os.path.join(DATA_FOLDER, "test_umap.parquet")
+UMAP_MODEL_PATH = os.path.join(MODEL_FOLDER, "umap_model.pkl")
