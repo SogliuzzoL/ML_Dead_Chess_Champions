@@ -16,7 +16,7 @@ if __name__ == "__main__":
     df = pd.read_parquet(DATASET_PATH)
 
     logger.info("Training UMAP model...")
-    model = StyleUMAP(n_components=2, n_neighbors=80, verbose=True)
+    model = StyleUMAP(n_components=2)
     result = model.fit_transform(embeddings)
 
     logger.info("Saving UMAP results...")
