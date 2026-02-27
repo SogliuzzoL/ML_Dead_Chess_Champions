@@ -3,8 +3,8 @@ import pickle
 import chess
 import cuml.accel as accel
 import torch
+from cuml.manifold import UMAP
 from maia2.utils import board_to_tensor
-from umap import UMAP
 
 accel.install(log_level="debug")
 
