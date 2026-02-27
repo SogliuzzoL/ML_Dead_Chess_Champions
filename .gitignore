@@ -183,6 +183,5 @@ pyrightconfig.json
 *.png
 *.pdf
 *.npy
+*.pkl
 Notes/
-models/
-data/

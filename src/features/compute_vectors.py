@@ -5,7 +5,8 @@ import tqdm
 from core.config import DATASET_PATH, UMAP_VECTORS_PATH
 from core.umap import position_to_vector
 
-if __name__ == "__main__":
+
+def compute_vectors():
     df = pd.read_parquet(DATASET_PATH)
     vectors = []
     progress_bar = tqdm.tqdm(df.iterrows(), total=len(df))
@@ -13,4 +14,5 @@ if __name__ == "__main__":
         vectors.append(position_to_vector(row["fen"], row["move"]))
 
     vectors = np.array(vectors)
+    np.save(UMAP_VECTORS_PATH, vectors)
     np.save(UMAP_VECTORS_PATH, vectors)

@@ -5,7 +5,13 @@ import pandas as pd
 import tqdm
 from scipy.spatial.distance import jensenshannon
 
-from core.config import DATA_FOLDER, UMAP_RESULT_PATH, logger
+from core.config import (
+    DISTANCES_RESULT_PATH,
+    DISTANCES_STATE_RESULT_PATH,
+    UMAP_RESULT_PATH,
+    UMAP_STATE_RESULT_PATH,
+    logger,
+)
 
 
 def compute_js_distance(emb1, emb2, bins=15, bounds=None):
@@ -22,9 +28,12 @@ def compute_js_distance(emb1, emb2, bins=15, bounds=None):
     return jensenshannon(p, q, base=2)
 
 
-if __name__ == "__main__":
+def compute_distances(state_mode=False):
+    result_path = UMAP_STATE_RESULT_PATH if state_mode else UMAP_RESULT_PATH
+    distances_path = DISTANCES_STATE_RESULT_PATH if state_mode else DISTANCES_RESULT_PATH
+
     logger.info("Loading UMAP results...")
-    df = pd.read_parquet(UMAP_RESULT_PATH)
+    df = pd.read_parquet(result_path)
 
     logger.info("Calculating distances between players...")
     distance_df = []
@@ -56,5 +65,5 @@ if __name__ == "__main__":
     distance_df.sort_values("JSDistance", inplace=True)
     print(distance_df.head())
     print(distance_df.tail())
-    distance_df.to_parquet(
-        f"{DATA_FOLDER}/distances.parquet", index=False)
+    distance_df.to_parquet(distances_path, index=False)
+    logger.info("Saving distances...")

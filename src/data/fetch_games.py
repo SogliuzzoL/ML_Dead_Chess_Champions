@@ -112,8 +112,7 @@ def fetch_chessgames(player_id: str) -> None:
         time.sleep(2)
 
 
-if __name__ == "__main__":
-
+def fetch_all_games():
     for player_id, player_name in player_dict.items():
         logger.info(
             f"Fetching games for player {player_name} (ID: {player_id})")

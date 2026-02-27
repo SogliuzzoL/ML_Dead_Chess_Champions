@@ -56,9 +56,12 @@ STOCKFISH_CPL_ANALYSE_PATH = os.path.join(
 UMAP_VECTORS_PATH = os.path.join(DATA_FOLDER, "umap_vectors.npy")
 UMAP_MODEL_PATH = os.path.join(MODEL_FOLDER, "umap_model.pkl")
 UMAP_RESULT_PATH = os.path.join(DATA_FOLDER, "umap_result.parquet")
+DISTANCES_RESULT_PATH = os.path.join(DATA_FOLDER, "player_distances.parquet")
 
 PLAYER_REFERENCE = ["Korchnoi", "Ivanchuk", "Anand", "Karpov"]
 
 MAIA_EMBEDDINGS_PATH = os.path.join(DATA_FOLDER, "maia_style_embeddings.npy")
 UMAP_STATE_MODEL_PATH = os.path.join(MODEL_FOLDER, "umap_state_model.pkl")
 UMAP_STATE_RESULT_PATH = os.path.join(DATA_FOLDER, "umap_state_result.parquet")
+DISTANCES_STATE_RESULT_PATH = os.path.join(
+    DATA_FOLDER, "player_state_distances.parquet")

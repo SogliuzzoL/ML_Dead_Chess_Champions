@@ -5,8 +5,8 @@ import pandas as pd
 from core.config import DATA_FOLDER, DATASET_PATH, MAIA_RESULT_PATH
 from visualization.utils_plot import plot_bar_distribution
 
-if __name__ == "__main__":
-    # Plot the distribution of the number of moves played per historical champion
+
+def plot_games_distributions():
     df = pd.read_parquet(DATASET_PATH)
     player_counts = df["player_name"].value_counts()
     plot_bar_distribution(
@@ -17,7 +17,6 @@ if __name__ == "__main__":
         output_filename=os.path.join(DATA_FOLDER, "player_distribution.pdf")
     )
 
-    # Plot the distribution of the number of games per historical champion
     game_counts = df.groupby("player_name")["game_id"].nunique()
     plot_bar_distribution(
         game_counts,
@@ -27,7 +26,8 @@ if __name__ == "__main__":
         output_filename=os.path.join(DATA_FOLDER, "player_game_count.pdf")
     )
 
-    # Plot Maia-2 move accuracy per historical champion
+
+def plot_maia_accuracy_distribution():
     df = pd.read_parquet(MAIA_RESULT_PATH)
     plot_bar_distribution(
         df.set_index("player")["maia_accuracy"],

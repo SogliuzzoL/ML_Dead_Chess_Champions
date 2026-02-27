@@ -27,7 +27,7 @@ class MAIA2StyleExtractor:
         return np.concatenate(self.embeddings, axis=0)
 
 
-if __name__ == "__main__":
+def extract_styles():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     maia_model = model.from_pretrained("rapid", device=device)
     style_extractor = MAIA2StyleExtractor(maia_model)
