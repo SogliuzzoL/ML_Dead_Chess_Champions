@@ -2,6 +2,7 @@ import os
 
 import chess
 import pandas as pd
+import tqdm
 from chess import pgn
 
 from core.config import (
@@ -35,8 +36,8 @@ def build_dataset():
             logger.warning(
                 f"No PGN folder found for player {player_name} (ID: {player_id}). Skipping.")
             continue
-
-        for filename in os.listdir(pgn_folder):
+        progress_bar = tqdm.tqdm(os.listdir(pgn_folder))
+        for filename in progress_bar:
             if not filename.endswith(".pgn"):
                 continue
 
@@ -73,7 +74,12 @@ def build_dataset():
             else:
                 data_count[player_name] += 1
 
-            logger.info(f"Processing game {filename} for player {player_name}")
+            fen = header.get("FEN", None)
+            if fen is not None:
+                logger.warning(
+                    f"Game in file {filename} for player {player_name} already has a FEN header. Skipping.")
+                continue
+
             board = game.board()
             for move in game.mainline_moves():
                 if board.turn == player_color:

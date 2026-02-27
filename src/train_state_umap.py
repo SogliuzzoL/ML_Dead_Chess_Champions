@@ -1,21 +1,18 @@
-import os
-
 import numpy as np
 import pandas as pd
 
 from core.config import (
-    DATA_FOLDER,
     DATASET_PATH,
-    UMAP_MODEL_PATH,
-    UMAP_RESULT_PATH,
-    UMAP_VECTORS_PATH,
+    MAIA_EMBEDDINGS_PATH,
+    UMAP_STATE_MODEL_PATH,
+    UMAP_STATE_RESULT_PATH,
     logger,
 )
 from core.umap import StyleUMAP
 
 if __name__ == "__main__":
     logger.info("Loading embeddings and dataset...")
-    embeddings = np.load(UMAP_VECTORS_PATH, mmap_mode="r")
+    embeddings = np.load(MAIA_EMBEDDINGS_PATH, mmap_mode="r")
     df = pd.read_parquet(DATASET_PATH)
 
     logger.info("Training UMAP model...")
@@ -25,5 +22,5 @@ if __name__ == "__main__":
     logger.info("Saving UMAP results...")
     result_df = pd.DataFrame(result, columns=["UMAP1", "UMAP2"])
     result_df["player_name"] = df["player_name"].values
-    result_df.to_parquet(UMAP_RESULT_PATH, index=False)
-    model.save_model(UMAP_MODEL_PATH)
+    result_df.to_parquet(UMAP_STATE_RESULT_PATH, index=False)
+    model.save_model(UMAP_STATE_MODEL_PATH)

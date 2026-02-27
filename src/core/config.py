@@ -4,6 +4,9 @@ import os
 DATA_FOLDER = "data"
 MODEL_FOLDER = "models"
 
+os.makedirs(DATA_FOLDER, exist_ok=True)
+os.makedirs(MODEL_FOLDER, exist_ok=True)
+
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -50,8 +53,12 @@ STOCKFISH_MODEL_PATH = os.path.join(MODEL_FOLDER, "stockfish")
 STOCKFISH_CPL_ANALYSE_PATH = os.path.join(
     DATA_FOLDER, "stockfish_cpl_analysis.parquet")
 
-MAIA_EMBEDDINGS_PATH = os.path.join(DATA_FOLDER, "maia_style_embeddings.npy")
+UMAP_VECTORS_PATH = os.path.join(DATA_FOLDER, "umap_vectors.npy")
 UMAP_RESULT_PATH = os.path.join(DATA_FOLDER, "test_umap.parquet")
 UMAP_MODEL_PATH = os.path.join(MODEL_FOLDER, "umap_model.pkl")
 
 PLAYER_REFERENCE = ["Korchnoi", "Ivanchuk", "Anand", "Karpov"]
+
+MAIA_EMBEDDINGS_PATH = os.path.join(DATA_FOLDER, "maia_style_embeddings.npy")
+UMAP_STATE_MODEL_PATH = os.path.join(MODEL_FOLDER, "umap_state_model.pkl")
+UMAP_STATE_RESULT_PATH = os.path.join(DATA_FOLDER, "umap_state_result.parquet")
