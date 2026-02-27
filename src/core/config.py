@@ -53,3 +53,5 @@ STOCKFISH_CPL_ANALYSE_PATH = os.path.join(
 MAIA_EMBEDDINGS_PATH = os.path.join(DATA_FOLDER, "maia_style_embeddings.npy")
 UMAP_RESULT_PATH = os.path.join(DATA_FOLDER, "test_umap.parquet")
 UMAP_MODEL_PATH = os.path.join(MODEL_FOLDER, "umap_model.pkl")
+
+PLAYER_REFERENCE = ["Korchnoi", "Ivanchuk", "Anand", "Karpov"]
