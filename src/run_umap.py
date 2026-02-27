@@ -25,6 +25,6 @@ if __name__ == "__main__":
         compute_vectors()
     train_umap(STATE_MODE)
     compute_distances(STATE_MODE)
-    visualize_umap(["Timman"], STATE_MODE)
+    visualize_umap(["Timman", "Ivanchuk"], STATE_MODE)
     visualize_distances(STATE_MODE)
     visualize_distances(STATE_MODE)
