@@ -35,8 +35,12 @@ All commands below are executed from the repository root.
 
 Fetches games, builds the dataset, and generates distribution plots.
 
+- `--download 0` (default): skip game download and use existing local PGNs/data
+- `--download 1`: download games before building the dataset
+
 ```bash
 python src/run_data.py
+python src/run_data.py --download 1
 ```
 
 ### 2) Run UMAP/style pipeline
@@ -45,10 +49,14 @@ Runs feature extraction, UMAP training, distance computation, and visualizations
 
 - `--state 0` (default): move-based style vectors
 - `--state 1`: state-based style extraction
+- `--train 0` (default): skip UMAP training and reuse existing trained model
+- `--train 1`: train UMAP before distance computation and visualization
 
 ```bash
 python src/run_umap.py --state 0
 python src/run_umap.py --state 1
+python src/run_umap.py --state 0 --train 0
+python src/run_umap.py --state 1 --train 0
 ```
 
 ### 3) Start the web app

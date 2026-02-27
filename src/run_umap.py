@@ -13,18 +13,27 @@ if __name__ == "__main__":
         "--state",
         type=int,
         default=0,
-        help="Définir sur 1 pour activer le STATE_MODE, ou 0 pour le désactiver."
+        help="Set to 1 to enable STATE_MODE, or 0 to disable it."
+    )
+    parser.add_argument(
+        "--train",
+        type=int,
+        default=0,
+        help="Set to 1 to enable TRAIN_MODE, or 0 to disable it."
     )
 
     args = parser.parse_args()
     STATE_MODE = bool(args.state)
+    TRAIN_MODE = bool(args.train)
 
     if STATE_MODE:
         extract_styles()
     else:
         compute_vectors()
-    train_umap(STATE_MODE)
+
+    if TRAIN_MODE:
+        train_umap(STATE_MODE)
+
     compute_distances(STATE_MODE)
     visualize_umap(["Timman", "Ivanchuk"], STATE_MODE)
-    visualize_distances(STATE_MODE)
     visualize_distances(STATE_MODE)
