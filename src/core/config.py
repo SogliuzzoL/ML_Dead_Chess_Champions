@@ -54,8 +54,8 @@ STOCKFISH_CPL_ANALYSE_PATH = os.path.join(
     DATA_FOLDER, "stockfish_cpl_analysis.parquet")
 
 UMAP_VECTORS_PATH = os.path.join(DATA_FOLDER, "umap_vectors.npy")
-UMAP_RESULT_PATH = os.path.join(DATA_FOLDER, "test_umap.parquet")
 UMAP_MODEL_PATH = os.path.join(MODEL_FOLDER, "umap_model.pkl")
+UMAP_RESULT_PATH = os.path.join(DATA_FOLDER, "umap_result.parquet")
 
 PLAYER_REFERENCE = ["Korchnoi", "Ivanchuk", "Anand", "Karpov"]
 
