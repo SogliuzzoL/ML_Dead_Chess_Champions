@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 import pandas as pd
 
@@ -35,5 +33,4 @@ def train_umap(state_mode=False):
     result_df["player_name"] = df["player_name"].values
 
     result_df.to_parquet(result_path, index=False)
-    model_umap.save_model(model_path)
     model_umap.save_model(model_path)
