@@ -185,3 +185,4 @@ pyrightconfig.json
 *.npy
 *.pkl
 Notes/
+stockfish
