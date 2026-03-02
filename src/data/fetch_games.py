@@ -1,4 +1,5 @@
 import os
+import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -44,6 +45,8 @@ def download_pgn(pid: str, gid: str, download_url: str) -> None:
 
     with open(file_path, "wb") as f:
         f.write(response.content)
+
+    time.sleep(random.uniform(0.5, 1.5))
 
 
 def fetch_chessgames(player_id: str, player_name: str, executor: ThreadPoolExecutor) -> None:
