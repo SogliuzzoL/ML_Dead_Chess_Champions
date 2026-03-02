@@ -46,7 +46,7 @@ def download_pgn(pid: str, gid: str, download_url: str) -> None:
     with open(file_path, "wb") as f:
         f.write(response.content)
 
-    time.sleep(random.uniform(0.5, 1.5))
+    time.sleep(random.uniform(2, 4))
 
 
 def fetch_chessgames(player_id: str, player_name: str, executor: ThreadPoolExecutor) -> None:
@@ -85,6 +85,6 @@ def fetch_chessgames(player_id: str, player_name: str, executor: ThreadPoolExecu
 
 def fetch_all_games():
     logger.info("Starting fetching all games...")
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         for player_id, player_name in player_dict.items():
             fetch_chessgames(player_id, player_name, executor)
