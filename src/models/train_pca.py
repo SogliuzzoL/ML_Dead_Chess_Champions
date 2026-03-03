@@ -1,14 +1,19 @@
 import numpy as np
 
-from core.config import PCA_MODEL_PATH, PCA_VECTORS_PATH, UMAP_VECTORS_PATH
+from core.config import PCA_MODEL_PATH, PCA_VECTORS_PATH, UMAP_VECTORS_PATH, logger
 from core.pca import StylePCA
 
 
 def train_pca():
-    maia_embeddings = np.load(PCA_VECTORS_PATH, mmap_mode='r')
-    print(f"Loaded Maia embeddings with shape: {maia_embeddings.shape}")
-    model = StylePCA(n_components=maia_embeddings.shape[1] // 10)
-    result = model.fit_transform(maia_embeddings)
-    model.save_model(PCA_MODEL_PATH)
+    pca_vectors = np.load(PCA_VECTORS_PATH, mmap_mode='r')
+    logger.info(
+        f"Loaded PCA vectors from {PCA_VECTORS_PATH} with shape {pca_vectors.shape}")
 
+    logger.info("Training PCA model...")
+    model = StylePCA(n_components=pca_vectors.shape[1] // 10)
+    result = model.fit_transform(pca_vectors)
+
+    logger.info(
+        f"Saving PCA model to {PCA_MODEL_PATH} and transformed vectors to {UMAP_VECTORS_PATH}")
+    model.save_model(PCA_MODEL_PATH)
     np.save(UMAP_VECTORS_PATH, result)
