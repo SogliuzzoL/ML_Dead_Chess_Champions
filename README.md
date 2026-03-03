@@ -1,37 +1,27 @@
 # ML Dead Chess Champions
 
+## Requirements
+
+- Python `3.10.19` (required by Maia-2 dependencies)
+- Stockfish executable available at `models/stockfish`
+
+If your Stockfish binary is in a different location, update `STOCKFISH_MODEL_PATH` in `src/core/config.py`.
 
 ## Installation
 
-Python 3.10.19 is used for this project, as it is incompatible with newer versions due to specific Maia-2 dependencies.
-
-### Dependencies
-
-To install dependencies, run:
+From the repository root:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-From the project root, run scripts with `python src/...`.
-
-### Stockfish
-
-You should install the Stockfish engine and place the executable in the `models` folder with the name `stockfish`.
-
-Expected path:
-
-```bash
-models/stockfish
-```
-
-Alternatively, modify `STOCKFISH_MODEL_PATH` in `src/core/config.py`.
+Run scripts from the project root using `python src/...`.
 
 ## Run Scripts
 
 All commands below are executed from the repository root.
 
-### 1) Build data pipeline
+### 1) Build the data pipeline
 
 Fetches games, builds the dataset, and generates distribution plots.
 
@@ -43,20 +33,46 @@ python src/run_data.py
 python src/run_data.py --download 1
 ```
 
-### 2) Run UMAP/style pipeline
+### 2) Run the UMAP/style pipeline
 
-Runs feature extraction, UMAP training, distance computation, and visualizations.
+Runs style/vector extraction (optional), latent model training (optional), UMAP training (optional), distance computation, and visualizations.
+
+Available parameters:
 
 - `--state 0` (default): move-based style vectors
 - `--state 1`: state-based style extraction
-- `--train 0` (default): skip UMAP training and reuse existing trained model
-- `--train 1`: train UMAP before distance computation and visualization
+- `--compute 0` (default): skip style/vector recomputation
+- `--compute 1`: recompute input representations before training/inference
+	- with `--state 0`: runs move-based vector computation
+	- with `--state 1`: runs state-based style extraction
+- `--train 0` (default): skip latent + UMAP training and reuse existing trained artifacts
+- `--train 1`: run training phase before distance computation/visualization
+- `--pca 0` (default): when training in move mode, use the autoencoder latent model
+- `--pca 1`: when training in move mode, use PCA instead of the autoencoder
+
+Notes:
+
+- `--pca` is only relevant when `--train 1 --state 0`.
+- Distance computation and visualization are always executed at the end.
 
 ```bash
+# Reuse existing trained artifacts (move mode)
 python src/run_umap.py --state 0
+
+# Reuse existing trained artifacts (state mode)
 python src/run_umap.py --state 1
-python src/run_umap.py --state 0 --train 0
-python src/run_umap.py --state 1 --train 0
+
+# Compute only distances + plots (move mode)
+python src/run_umap.py --state 0 --compute 0 --train 0
+
+# Train with autoencoder latent model (move mode)
+python src/run_umap.py --state 0 --train 1 --pca 0
+
+# Train with PCA latent model (move mode)
+python src/run_umap.py --state 0 --train 1 --pca 1
+
+# Recompute state features + train UMAP (state mode)
+python src/run_umap.py --state 1 --compute 1 --train 1
 ```
 
 ### 3) Start the web app
@@ -67,7 +83,7 @@ Starts the Flask app on `0.0.0.0:5000`.
 python src/app.py
 ```
 
-Open: `http://localhost:5000`
+Open `http://localhost:5000`.
 
 ## Main Outputs
 
@@ -79,26 +95,26 @@ Default generated outputs include:
 - `data/player_distances.parquet` or `data/player_state_distances.parquet`
 - `data/stockfish_cpl_analysis.parquet`
 
-## Project Files and Structure
+## Project Structure
 
-### Root Configuration Files
-- **`Dockerfile`** - Docker container configuration for running the project in an isolated environment
-- **`docker-compose.yml`** - Docker Compose configuration for multi-container orchestration
-- **`requirements.txt`** - Python dependencies required for the project
-- **`README.md`** - Project documentation
+### Root files
+- **`Dockerfile`**: Docker image configuration
+- **`docker-compose.yml`**: Docker Compose configuration
+- **`requirements.txt`**: Python dependencies
+- **`README.md`**: project documentation
 
-### Core Source Code (`src/`)
-- **`app.py`** - Flask web application for playing against Maia-2
-- **`run_data.py`** - Orchestrates data fetching, dataset build, and dataset stats plotting
-- **`run_umap.py`** - Orchestrates style extraction/vectorization, UMAP training, distance computation, and visualizations
-- **`core/`** - Core configuration and engine modules
-- **`data/`** - Data ingestion/build scripts
-- **`features/`** - Feature extraction and Stockfish analysis
-- **`models/`** - Maia inference and UMAP-distance model utilities
-- **`visualization/`** - Plotting and visualization scripts
+### Source (`src/`)
+- **`app.py`**: Flask app for playing against Maia-2
+- **`run_data.py`**: dataset build pipeline orchestration
+- **`run_umap.py`**: style extraction/UMAP/distance pipeline orchestration
+- **`core/`**: core configuration and engine modules
+- **`data/`**: data ingestion and build scripts
+- **`features/`**: feature extraction and Stockfish analysis
+- **`models/`**: Maia inference and model utilities
+- **`visualization/`**: plotting and visualization scripts
 
-### Web Interface (`templates/`)
-- **`index.html`** - HTML template for the web application frontend
+### Web (`templates/`)
+- **`index.html`**: web frontend template
 
 ## Use of AI in the project
 All comments in this repository were generated by **Github Copilot**.
