@@ -23,19 +23,38 @@ if __name__ == "__main__":
         default=0,
         help="Set to 1 to enable TRAIN_MODE, or 0 to disable it."
     )
+    parser.add_argument(
+        "--compute",
+        type=int,
+        default=0,
+        help="Set to 1 to enable COMPUTE_MODE, or 0 to disable it."
+    )
+    parser.add_argument(
+        "--pca",
+        type=int,
+        default=0,
+        help="Set to 1 to enable PCA_MODE, or 0 to disable it."
+    )
 
     args = parser.parse_args()
     STATE_MODE = bool(args.state)
     TRAIN_MODE = bool(args.train)
+    COMPUTE_MODE = bool(args.compute)
+    PCA_MODE = bool(args.pca)
 
-    if STATE_MODE:
-        extract_styles()
-    else:
-        compute_vectors()
-        run_autoencoder()
-        # train_pca()
+    if COMPUTE_MODE:
+        if STATE_MODE:
+            extract_styles()
+        else:
+            compute_vectors()
 
     if TRAIN_MODE:
+        if not STATE_MODE:
+            if PCA_MODE:
+                train_pca()
+            else:
+                run_autoencoder()
+
         train_umap(STATE_MODE)
 
     compute_distances(STATE_MODE)

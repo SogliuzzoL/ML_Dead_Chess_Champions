@@ -24,7 +24,7 @@ class ChessDataset(Dataset):
 
 def train_autoencoder(train_dataset, input_dim, latent_dim=128, num_epochs=10, batch_size=1024, learning_rate=1e-3):
     model = Autoencoder(input_dim, latent_dim).to(DEVICE)
-    criterion = nn.MSELoss()
+    criterion = nn.BCELoss()
     optimizer = Adam(model.parameters(), lr=learning_rate)
 
     train_loader = DataLoader(
