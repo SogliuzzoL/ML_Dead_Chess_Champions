@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import tqdm
 
-from core.config import DATASET_PATH, UMAP_VECTORS_PATH
+from core.config import DATASET_PATH, PCA_VECTORS_PATH
 from core.umap import position_to_vector
 
 
@@ -14,5 +14,4 @@ def compute_vectors():
         vectors.append(position_to_vector(row["fen"], row["move"]))
 
     vectors = np.array(vectors)
-    np.save(UMAP_VECTORS_PATH, vectors)
-    np.save(UMAP_VECTORS_PATH, vectors)
+    np.save(PCA_VECTORS_PATH, vectors)

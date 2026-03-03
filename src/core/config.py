@@ -55,6 +55,8 @@ STOCKFISH_MODEL_PATH = os.path.join(MODEL_FOLDER, "stockfish")
 STOCKFISH_CPL_ANALYSE_PATH = os.path.join(
     DATA_FOLDER, "stockfish_cpl_analysis.parquet")
 
+PCA_VECTORS_PATH = os.path.join(DATA_FOLDER, "pca_vectors.npy")
+PCA_MODEL_PATH = os.path.join(MODEL_FOLDER, "pca_model.pkl")
 UMAP_VECTORS_PATH = os.path.join(DATA_FOLDER, "umap_vectors.npy")
 UMAP_MODEL_PATH = os.path.join(MODEL_FOLDER, "umap_model.pkl")
 UMAP_RESULT_PATH = os.path.join(DATA_FOLDER, "umap_result.parquet")
