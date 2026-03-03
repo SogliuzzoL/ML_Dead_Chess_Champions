@@ -3,6 +3,7 @@ import argparse
 from features.compute_vectors import compute_vectors
 from features.style_extractor import extract_styles
 from models.compute_distances import compute_distances
+from models.train_autoencoder import run as run_autoencoder
 from models.train_pca import train_pca
 from models.train_umap import train_umap
 from visualization.visualize_distances import visualize_distances
@@ -31,7 +32,8 @@ if __name__ == "__main__":
         extract_styles()
     else:
         compute_vectors()
-        train_pca()
+        run_autoencoder()
+        # train_pca()
 
     if TRAIN_MODE:
         train_umap(STATE_MODE)

@@ -1,16 +1,16 @@
 import numpy as np
 
-from core.config import PCA_MODEL_PATH, PCA_VECTORS_PATH, UMAP_VECTORS_PATH, logger
+from core.config import PCA_MODEL_PATH, UMAP_VECTORS_PATH, VECTORS_PATH, logger
 from core.pca import StylePCA
 
 
 def train_pca():
-    pca_vectors = np.load(PCA_VECTORS_PATH, mmap_mode='r')
+    pca_vectors = np.load(VECTORS_PATH, mmap_mode='r')
     logger.info(
-        f"Loaded PCA vectors from {PCA_VECTORS_PATH} with shape {pca_vectors.shape}")
+        f"Loaded PCA vectors from {VECTORS_PATH} with shape {pca_vectors.shape}")
 
     logger.info("Training PCA model...")
-    model = StylePCA(n_components=pca_vectors.shape[1] // 10)
+    model = StylePCA(n_components=128)
     result = model.fit_transform(pca_vectors)
 
     logger.info(
