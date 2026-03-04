@@ -4,11 +4,14 @@ import chess
 import pandas as pd
 import tqdm
 from chess import pgn
+from sklearn.model_selection import train_test_split
 
 from core.config import (
     DATA_FOLDER,
     DATASET_COL_ORDER,
     DATASET_PATH,
+    TEST_SET_PATH,
+    TRAIN_SET_PATH,
     logger,
     player_dict,
 )
@@ -100,6 +103,10 @@ def build_dataset():
                 board.push(move)
 
     df = pd.DataFrame(data, columns=DATASET_COL_ORDER)
+    df_train, df_test = train_test_split(df, test_size=0.2, random_state=42)
+
+    df_train.to_parquet(TRAIN_SET_PATH)
+    df_test.to_parquet(TEST_SET_PATH)
     df.to_parquet(DATASET_PATH)
 
 

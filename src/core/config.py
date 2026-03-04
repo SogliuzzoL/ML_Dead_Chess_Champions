@@ -47,6 +47,9 @@ player_dict = {
 DATASET_PATH = os.path.join(DATA_FOLDER, "chess_positions.parquet")
 MAIA_RESULT_PATH = os.path.join(DATA_FOLDER, "maia_result.parquet")
 
+TRAIN_SET_PATH = os.path.join(DATA_FOLDER, "train_set.parquet")
+TEST_SET_PATH = os.path.join(DATA_FOLDER, "test_set.parquet")
+
 MAIA_COL_ORDER = ["fen", "move", "active_elo", "opponent_elo"]
 DATASET_COL_ORDER = ["game_id", "round", "player_name",
                      "player_color", "fen", "move", "repetition", "result"]
