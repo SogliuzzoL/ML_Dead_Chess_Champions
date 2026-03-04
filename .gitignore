@@ -186,3 +186,4 @@ pyrightconfig.json
 *.pkl
 Notes/
 stockfish
+*.pth

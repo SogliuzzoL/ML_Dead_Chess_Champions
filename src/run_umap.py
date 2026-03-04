@@ -1,5 +1,6 @@
 import argparse
 
+from core.config import PLAYER_REFERENCE
 from features.compute_vectors import compute_vectors
 from features.style_extractor import extract_styles
 from models.compute_distances import compute_distances
@@ -58,5 +59,5 @@ if __name__ == "__main__":
         train_umap(STATE_MODE)
 
     compute_distances(STATE_MODE)
-    visualize_umap(["Timman", "Ivanchuk"], STATE_MODE)
+    visualize_umap(PLAYER_REFERENCE, STATE_MODE)
     visualize_distances(STATE_MODE)
