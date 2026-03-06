@@ -3,20 +3,20 @@ import pandas as pd
 
 from core.config import (
     DATASET_PATH,
-    MAIA_EMBEDDINGS_PATH,
+    TRAIN_MAIA_EMBEDDINGS_PATH,
+    TRAIN_UMAP_RESULT_PATH,
+    TRAIN_UMAP_STATE_RESULT_PATH,
+    TRAIN_UMAP_VECTORS_PATH,
     UMAP_MODEL_PATH,
-    UMAP_RESULT_PATH,
     UMAP_STATE_MODEL_PATH,
-    UMAP_STATE_RESULT_PATH,
-    UMAP_VECTORS_PATH,
     logger,
 )
 from core.umap import StyleUMAP
 
 
 def train_umap(state_mode=False):
-    vectors_path = UMAP_VECTORS_PATH if not state_mode else MAIA_EMBEDDINGS_PATH
-    result_path = UMAP_RESULT_PATH if not state_mode else UMAP_STATE_RESULT_PATH
+    vectors_path = TRAIN_UMAP_VECTORS_PATH if not state_mode else TRAIN_MAIA_EMBEDDINGS_PATH
+    result_path = TRAIN_UMAP_RESULT_PATH if not state_mode else TRAIN_UMAP_STATE_RESULT_PATH
     model_path = UMAP_MODEL_PATH if not state_mode else UMAP_STATE_MODEL_PATH
 
     logger.info("Loading vectors from %s", vectors_path)

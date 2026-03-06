@@ -1,6 +1,12 @@
 import argparse
 
-from core.config import PLAYER_REFERENCE
+from core.config import (
+    PLAYER_REFERENCE,
+    TRAIN_MAIA_EMBEDDINGS_PATH,
+    TRAIN_SET_PATH,
+    TRAIN_UMAP_VECTORS_PATH,
+    TRAIN_VECTORS_PATH,
+)
 from features.compute_vectors import compute_vectors
 from features.style_extractor import extract_styles
 from models.compute_distances import compute_distances
@@ -43,18 +49,16 @@ if __name__ == "__main__":
     COMPUTE_MODE = bool(args.compute)
     PCA_MODE = bool(args.pca)
 
-    if COMPUTE_MODE:
-        if STATE_MODE:
-            extract_styles()
-        else:
-            compute_vectors()
-
     if TRAIN_MODE:
-        if not STATE_MODE:
+        if STATE_MODE:
+            if COMPUTE_MODE:
+                extract_styles(TRAIN_SET_PATH, TRAIN_MAIA_EMBEDDINGS_PATH)
+        else:
+            compute_vectors(TRAIN_SET_PATH, TRAIN_VECTORS_PATH)
             if PCA_MODE:
-                train_pca()
+                train_pca(TRAIN_VECTORS_PATH, TRAIN_UMAP_VECTORS_PATH)
             else:
-                run_autoencoder()
+                run_autoencoder(TRAIN_VECTORS_PATH, TRAIN_UMAP_VECTORS_PATH)
 
         train_umap(STATE_MODE)
 

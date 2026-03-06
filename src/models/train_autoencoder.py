@@ -53,8 +53,8 @@ def train_autoencoder(train_dataset, input_dim, latent_dim=128, num_epochs=10, b
     return model
 
 
-def run():
-    data = np.load(VECTORS_PATH, mmap_mode="r")
+def run(input_path: str, output_path: str):
+    data = np.load(input_path, mmap_mode="r")
     input_dim = data.shape[1]
 
     train_dataset = ChessDataset(data)
@@ -65,7 +65,7 @@ def run():
     encoded_vectors = []
 
     infer_loader = DataLoader(
-        train_dataset, batch_size=2048, shuffle=False, num_workers=4)
+        train_dataset, batch_size=1024, shuffle=False, num_workers=4)
 
     with torch.no_grad():
         for batch in tqdm(infer_loader, desc="Encoding Vectors"):
@@ -74,5 +74,5 @@ def run():
             encoded_vectors.append(latent.cpu().numpy())
 
     result = np.concatenate(encoded_vectors, axis=0)
-    np.save(UMAP_VECTORS_PATH, result)
+    np.save(output_path, result)
     torch.save(model.state_dict(), AUTOENCODER_MODEL_PATH)

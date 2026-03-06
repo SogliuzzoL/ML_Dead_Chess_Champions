@@ -21,9 +21,16 @@ def get_move():
         move_uci, move_dict = engine.predict_mcts(
             data["fen"],
             data["pgn"],
-            int(data["active_elo"]),
-            int(data["opponent_elo"])
+            active_elo=int(data["active_elo"]),
+            opponent_elo=int(data["opponent_elo"])
         )
+
+        # move_uci, move_dict = engine.predict_move(
+        #     data["fen"],
+        #     int(data["active_elo"]),
+        #     int(data["opponent_elo"])
+        # )
+
         return jsonify({
             "move": move_uci,
             "probabilities": move_dict

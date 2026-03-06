@@ -44,10 +44,22 @@ player_dict = {
     "14220": "Timman",
 }
 
+# Train variables
+
+TRAIN_SET_PATH = os.path.join(DATA_FOLDER, "train_set.parquet")
+TRAIN_VECTORS_PATH = os.path.join(DATA_FOLDER, "train_vectors.npy")
+TRAIN_MAIA_EMBEDDINGS_PATH = os.path.join(
+    DATA_FOLDER, "train_maia_style_embeddings.npy")
+TRAIN_UMAP_VECTORS_PATH = os.path.join(DATA_FOLDER, "train_umap_vectors.npy")
+TRAIN_UMAP_STATE_RESULT_PATH = os.path.join(
+    DATA_FOLDER, "train_umap_state_result.parquet")
+TRAIN_UMAP_RESULT_PATH = os.path.join(DATA_FOLDER, "train_umap_result.parquet")
+
+# ===================
+
 DATASET_PATH = os.path.join(DATA_FOLDER, "chess_positions.parquet")
 MAIA_RESULT_PATH = os.path.join(DATA_FOLDER, "maia_result.parquet")
 
-TRAIN_SET_PATH = os.path.join(DATA_FOLDER, "train_set.parquet")
 TEST_SET_PATH = os.path.join(DATA_FOLDER, "test_set.parquet")
 
 MAIA_COL_ORDER = ["fen", "move", "active_elo", "opponent_elo"]

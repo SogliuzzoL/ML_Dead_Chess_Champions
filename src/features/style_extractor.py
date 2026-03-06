@@ -5,7 +5,7 @@ from maia2 import inference
 from maia2 import main as maia
 from maia2 import model
 
-from core.config import DATASET_PATH, MAIA_COL_ORDER, MAIA_EMBEDDINGS_PATH, logger
+from core.config import MAIA_COL_ORDER, logger
 
 
 class MAIA2StyleExtractor:
@@ -27,12 +27,12 @@ class MAIA2StyleExtractor:
         return np.concatenate(self.embeddings, axis=0)
 
 
-def extract_styles():
+def extract_styles(input_path: str, output_path: str):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     maia_model = model.from_pretrained("rapid", device=device)
     style_extractor = MAIA2StyleExtractor(maia_model)
 
-    df = pd.read_parquet(DATASET_PATH)
+    df = pd.read_parquet(input_path)
     df["active_elo"] = 2500
     df["opponent_elo"] = 2500
 
@@ -43,4 +43,4 @@ def extract_styles():
     logger.info("Embeddings shape: {}".format(
         style_extractor.get_embeddings().shape))
 
-    np.save(MAIA_EMBEDDINGS_PATH, style_extractor.get_embeddings())
+    np.save(output_path, style_extractor.get_embeddings())
