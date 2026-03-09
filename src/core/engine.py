@@ -6,6 +6,9 @@ import numpy as np
 import torch
 from maia2 import inference, model
 
+from models.player_style import PlayerStyleEmbedding
+
+from .config import base_player_dict
 from .mcts import MCTS
 
 
@@ -14,6 +17,12 @@ class MaiaEngine:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = model.from_pretrained(model_type, self.device)
         self.prepare = inference.prepare()
+
+        n_players = len(base_player_dict)
+        self.model.elo_embedding = PlayerStyleEmbedding(
+            self.model.elo_embedding,
+            n_players
+        ).to(self.device)
 
     def get_board_from_fen(self, fen, pgn):
         board = chess.Board()
@@ -64,5 +73,7 @@ class MaiaEngine:
         mcts = MCTS(self.model, self.prepare)
         best_move, result = mcts.run(board, num_simulations, max_depth,
                                      threshold=threshold, penalty_value=penalty_value, activ_elo=active_elo, opp_elo=opponent_elo)
+
+        return best_move, result
 
         return best_move, result
