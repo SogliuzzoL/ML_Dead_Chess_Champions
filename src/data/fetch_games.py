@@ -8,7 +8,7 @@ from lxml import html
 from tenacity import retry, stop_after_delay, wait_exponential
 from tqdm import tqdm
 
-from core.config import DATA_FOLDER, HEADERS, logger, player_dict
+from core.config import DATA_FOLDER, HEADERS, base_player_dict, logger
 
 os.makedirs(DATA_FOLDER, exist_ok=True)
 
@@ -86,5 +86,5 @@ def fetch_chessgames(player_id: str, player_name: str, executor: ThreadPoolExecu
 def fetch_all_games():
     logger.info("Starting fetching all games...")
     with ThreadPoolExecutor(max_workers=10) as executor:
-        for player_id, player_name in player_dict.items():
+        for player_id, player_name in base_player_dict.items():
             fetch_chessgames(player_id, player_name, executor)

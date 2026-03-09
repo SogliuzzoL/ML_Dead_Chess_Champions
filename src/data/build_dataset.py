@@ -12,8 +12,8 @@ from core.config import (
     DATASET_PATH,
     TEST_SET_PATH,
     TRAIN_SET_PATH,
+    base_player_dict,
     logger,
-    player_dict,
 )
 
 
@@ -30,7 +30,7 @@ def build_dataset():
     """
     data = []
     data_count = {}
-    for player_id, player_name in player_dict.items():
+    for player_id, player_name in base_player_dict.items():
         logger.info(
             f"Converting PGN files for player {player_name} (ID: {player_id})")
 

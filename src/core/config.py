@@ -22,26 +22,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-player_dict = {
+base_player_dict = {
     "10240": "Alekhine",
     "12112": "Andersson",
     "12088": "Anand",
     "13755": "Beliavsky",
     "47544": "Capablanca",
-    # "79773": "Deschapelles",
     "19233": "Fischer",
     "12183": "Ivanchuk",
     "20719": "Karpov",
     "15940": "Kasparov",
     "15866": "Korchnoi",
     "11227": "Larsen",
-    # "16002": "Morphy",
-    # "31576": "Philidor",
     "16149": "Petrosian",
     "14568": "Portisch",
     "12181": "Short",
     "14380": "Tal",
     "14220": "Timman",
+}
+
+other_player_dict = {
+    "79773": "Deschapelles",
+    "16002": "Morphy",
+    "31576": "Philidor"
 }
 
 # Train variables
