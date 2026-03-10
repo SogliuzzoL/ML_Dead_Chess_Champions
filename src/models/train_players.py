@@ -14,9 +14,16 @@ from torch.optim.adam import Adam
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from core.config import TRAIN_SET_PATH, base_player_dict, logger
+from core.config import (
+    CHAMPIONS_EMBEDDINGS_PATH,
+    TRAIN_SET_PATH,
+    base_player_dict,
+    logger,
+)
 
 from .player_style import PlayerStyleEmbedding
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class PlayerDataset(Dataset):
@@ -59,14 +66,11 @@ class PlayerDataset(Dataset):
         return board_tensor, active_player_idx, opponent_idx, move_label
 
 
-def run_training(epochs=10, batch_size=128, lr=1e-3):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    maia_model = model.from_pretrained(
-        "rapid", device="gpu" if torch.cuda.is_available() else "cpu")
+def run_training(epochs=10, batch_size=512, lr=1e-4):
+    maia_model = model.from_pretrained("rapid", DEVICE)
     n_players = len(base_player_dict)
     maia_model.elo_embedding = PlayerStyleEmbedding(
-        maia_model.elo_embedding, n_players).to(device)
+        maia_model.elo_embedding, n_players).to(DEVICE)
 
     all_moves = get_all_possible_moves()
     all_moves_dict = {move: i for i, move in enumerate(all_moves)}
@@ -81,24 +85,21 @@ def run_training(epochs=10, batch_size=128, lr=1e-3):
         maia_model.elo_embedding.players_embeddings.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
 
-    logger.info(f"Démarrage de l'entraînement sur {device}...")
+    logger.info(
+        f"Starting training for {epochs} epochs with batch size {batch_size} and learning rate {lr}")
 
-    # 1. Barre de progression pour le suivi global des époques
     pbar_epochs = tqdm(range(epochs), desc="Total Epochs", unit="epoch")
 
     for epoch in pbar_epochs:
         maia_model.train()
         epoch_loss = 0
-
-        # 2. Barre de progression pour le suivi du dataset à chaque époque
-        # leave=False permet d'effacer la barre de l'époque une fois terminée
         pbar_batches = tqdm(
             loader, desc=f"Epoch {epoch+1}/{epochs}", leave=False, unit="batch")
 
         for boards, active_ids, opponent_ids, labels in pbar_batches:
             boards, active_ids, opponent_ids, labels = (
-                boards.to(device), active_ids.to(device),
-                opponent_ids.to(device), labels.to(device)
+                boards.to(DEVICE), active_ids.to(DEVICE),
+                opponent_ids.to(DEVICE), labels.to(DEVICE)
             )
 
             logits_maia, _, _ = maia_model(boards, active_ids, opponent_ids)
@@ -110,22 +111,13 @@ def run_training(epochs=10, batch_size=128, lr=1e-3):
 
             current_loss = loss.item()
             epoch_loss += current_loss
-
-            # Mise à jour de l'affichage de la perte en temps réel sur la barre des lots
             pbar_batches.set_postfix({"batch_loss": f"{current_loss:.4f}"})
 
         avg_loss = epoch_loss / len(loader)
 
-        # Mise à jour de la barre globale avec la perte moyenne de l'époque
         pbar_epochs.set_postfix({"avg_loss": f"{avg_loss:.4f}"})
         logger.info(f"Final Epoch {epoch+1}/{epochs} | Loss: {avg_loss:.4f}")
 
-        # intermediary save after each epoch
-        save_path = f"models/historical_champions_epoch_{epoch+1}.pth"
-        torch.save(
-            maia_model.elo_embedding.players_embeddings.state_dict(), save_path)
-        logger.info(f"Modèle sauvegardé : {save_path}")
-
-    save_path = "models/historical_champions_v1.pth"
-    torch.save(maia_model.elo_embedding.players_embeddings.state_dict(), save_path)
-    logger.info(f"Modèle sauvegardé : {save_path}")
+    torch.save(maia_model.elo_embedding.players_embeddings.state_dict(),
+               CHAMPIONS_EMBEDDINGS_PATH)
+    logger.info(f"Model saved to {CHAMPIONS_EMBEDDINGS_PATH}")

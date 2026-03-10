@@ -21,23 +21,21 @@ class Node:
     def compute_U(self, parent_visits, c_puct=1.0):
         return c_puct * self.maia_prob * np.sqrt(parent_visits) / (1 + self.visits)
 
-    def generate_child(self, model, prepare, fen, activ_elo, opp_elo, threshold=0.01):
-        results, _ = inference.inference_each(
-            model, prepare, fen, activ_elo, opp_elo)
+    def generate_child(self, child_generator, fen, activ_elo, opp_elo, threshold=0.01):
+        _, results = child_generator(fen, activ_elo, opp_elo)
         for move, prob in results.items():
             if prob > threshold:
                 self.children[move] = Node(prob)
 
 
 class MCTS:
-    def __init__(self, model, prepare):
-        self.model = model
-        self.prepare = prepare
+    def __init__(self, child_generator):
+        self.child_generator = child_generator
         self.root = Node()
 
-    def run(self, board: chess.Board, num_simulations: int, max_depth: int, threshold=0.01, penalty_value=10.0, activ_elo=2500, opp_elo=2500):
+    def run(self, board: chess.Board, num_simulations: int, max_depth: int, threshold=0.01, penalty_value=10.0, activ_elo: int | str = 2500, opp_elo: int | str = 2500):
         self.root.generate_child(
-            self.model, self.prepare, board.fen(), activ_elo, opp_elo, threshold)
+            self.child_generator, board.fen(), activ_elo, opp_elo, threshold)
         for _ in range(num_simulations):
             current_node = self.root
             sim_board = board.copy()
@@ -67,12 +65,12 @@ class MCTS:
 
             value = 0
 
-            if sim_board.is_repetition(2):
+            if sim_board.is_repetition(2) or sim_board.is_stalemate() or sim_board.is_seventyfive_moves():
                 value = -penalty_value
 
             if depth < max_depth and not sim_board.is_game_over():
                 current_node.generate_child(
-                    self.model, self.prepare, sim_board.fen(), activ_elo, opp_elo, threshold)
+                    self.child_generator, sim_board.fen(), activ_elo, opp_elo, threshold)
 
             for node in reversed(path):
                 node.visits += 1

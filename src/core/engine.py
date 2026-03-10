@@ -1,14 +1,15 @@
 import io
+import os
 
 import chess
 import chess.pgn
-import numpy as np
 import torch
 from maia2 import inference, model
+from maia2.utils import board_to_tensor, mirror_move
 
 from models.player_style import PlayerStyleEmbedding
 
-from .config import base_player_dict
+from .config import CHAMPIONS_EMBEDDINGS_PATH, base_player_dict
 from .mcts import MCTS
 
 
@@ -23,6 +24,15 @@ class MaiaEngine:
             self.model.elo_embedding,
             n_players
         ).to(self.device)
+
+        if os.path.exists(CHAMPIONS_EMBEDDINGS_PATH):
+            state_dict = torch.load(
+                CHAMPIONS_EMBEDDINGS_PATH, map_location=self.device)
+            self.model.elo_embedding.players_embeddings.load_state_dict(
+                state_dict)
+
+        self.player_to_idx = {player: idx + self.model.elo_embedding.max_maia_idx +
+                              1 for idx, player in enumerate(base_player_dict.values())}
 
     def get_board_from_fen(self, fen, pgn):
         board = chess.Board()
@@ -39,41 +49,50 @@ class MaiaEngine:
                 board = chess.Board(fen)
         return board
 
-    def predict_move(self, fen, active_elo=2500, opponent_elo=2500):
-        result, _ = inference.inference_each(
-            self.model, self.prepare, fen, active_elo, opponent_elo)
-        best_move = list(result.keys())[0]
-        return best_move, result
-
-    def predict_proba_move(self, fen, active_elo=2500, opponent_elo=2500):
-        result, _ = inference.inference_each(
-            self.model, self.prepare, fen, active_elo, opponent_elo)
-        normalized_result = {
-            move: prob / sum(result.values()) for move, prob in result.items()}
-        proba_move = np.random.choice(
-            list(normalized_result.keys()), p=list(normalized_result.values()))
-        return proba_move, result
-
-    def predict_move_without_repetition(self, fen, pgn, active_elo=2500, opponent_elo=2500):
+    def predict_mcts(self, fen, pgn, num_simulations=50, max_depth=4, threshold=0.05, penalty_value=10.0, active_elo: int | str = 2500, opponent_elo: int | str = 2500):
         board = self.get_board_from_fen(fen, pgn)
-
-        result, _ = inference.inference_each(
-            self.model, self.prepare, fen, active_elo, opponent_elo)
-
-        for move, _ in result.items():
-            board.push_uci(move)
-            if not board.is_repetition(2):
-                return move, result
-            board.pop()
-
-        return list(result.keys())[0], result
-
-    def predict_mcts(self, fen, pgn, num_simulations=50, max_depth=4, threshold=0.05, penalty_value=10.0, active_elo=2500, opponent_elo=2500):
-        board = self.get_board_from_fen(fen, pgn)
-        mcts = MCTS(self.model, self.prepare)
+        mcts = MCTS(self.predict_move)
         best_move, result = mcts.run(board, num_simulations, max_depth,
                                      threshold=threshold, penalty_value=penalty_value, activ_elo=active_elo, opp_elo=opponent_elo)
 
         return best_move, result
 
-        return best_move, result
+    def _get_style_idx(self, val: int | str):
+        if isinstance(val, str) and val in self.player_to_idx:
+            return self.player_to_idx[val]
+        _, elo_dict, _ = self.prepare
+        return inference.map_to_category(int(val), elo_dict)
+
+    def predict_move(self, fen, active_elo: int | str = 2500, opponent_elo: int | str = 2500):
+        board = chess.Board(fen)
+        is_mirrored = False
+        if board.turn == chess.BLACK:
+            board = board.mirror()
+            is_mirrored = True
+
+        device = self.device
+        board_tensor = board_to_tensor(board).unsqueeze(0).to(device)
+        s_self = torch.tensor([self._get_style_idx(active_elo)]).to(device)
+        s_oppo = torch.tensor([self._get_style_idx(opponent_elo)]).to(device)
+
+        self.model.eval()
+        with torch.no_grad():
+            logits_maia, _, _ = self.model(board_tensor, s_self, s_oppo)
+            all_moves_dict, _, all_moves_dict_reversed = self.prepare
+            legal_mask = torch.zeros(logits_maia.size(-1)).to(device)
+            for move in board.legal_moves:
+                legal_mask[all_moves_dict[move.uci()]] = 1
+
+            probs = (logits_maia[0] * legal_mask).softmax(dim=-1).cpu().numpy()
+
+        move_probs = {}
+        for i in legal_mask.nonzero().flatten().tolist():
+            move_uci = all_moves_dict_reversed[i]
+            final_move = mirror_move(move_uci) if is_mirrored else move_uci
+            move_probs[final_move] = float(probs[i])
+
+        sorted_moves = sorted(move_probs.items(),
+                              key=lambda x: x[1], reverse=True)
+        best_move = sorted_moves[0][0]
+
+        return best_move, dict(sorted_moves)
