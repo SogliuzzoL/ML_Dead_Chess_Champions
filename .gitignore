@@ -187,3 +187,4 @@ pyrightconfig.json
 Notes/
 stockfish
 *.pth
+src/test.py
