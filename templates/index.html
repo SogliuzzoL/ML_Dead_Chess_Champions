@@ -98,8 +98,33 @@
             <input type="text" id="fenInput" value="start" style="width: 300px;">
         </div>
         <div class="row">
-            <label>White ELO:</label> <input type="text" id="eloW" value="2500" style="width: 70px;">
-            <label>Black ELO:</label> <input type="text" id="eloB" value="2500" style="width: 70px;">
+            <label>White Level:</label>
+            <select id="eloW" style="width: 120px;">
+                <optgroup label="Standard ELO">
+                    {% for elo in standard_elos %}
+                    <option value="{{ elo }}">{{ elo }}</option>
+                    {% endfor %}
+                </optgroup>
+                <optgroup label="Champions">
+                    {% for player in players %}
+                    <option value="{{ player }}">{{ player }}</option>
+                    {% endfor %}
+                </optgroup>
+            </select>
+
+            <label>Black Level:</label>
+            <select id="eloB" style="width: 120px;">
+                <optgroup label="Standard ELO">
+                    {% for elo in standard_elos %}
+                    <option value="{{ elo }}">{{ elo }}</option>
+                    {% endfor %}
+                </optgroup>
+                <optgroup label="Champions">
+                    {% for player in players %}
+                    <option value="{{ player }}">{{ player }}</option>
+                    {% endfor %}
+                </optgroup>
+            </select>
         </div>
         <div class="row">
             <label>Your side:</label>

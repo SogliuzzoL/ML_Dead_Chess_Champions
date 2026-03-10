@@ -11,8 +11,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src/ ./src/
-COPY static/ ./static/
 COPY templates/ ./templates/
+COPY models/ ./models/
 RUN mkdir -p data
 
 EXPOSE 5000

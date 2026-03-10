@@ -60,7 +60,11 @@ class MaiaEngine:
     def _get_style_idx(self, val: int | str):
         if isinstance(val, str) and val in self.player_to_idx:
             return self.player_to_idx[val]
+
         _, elo_dict, _ = self.prepare
+        if isinstance(val, str) and val in elo_dict:
+            return elo_dict[val]
+
         return inference.map_to_category(int(val), elo_dict)
 
     def predict_move(self, fen, active_elo: int | str = 2500, opponent_elo: int | str = 2500):
