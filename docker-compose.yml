@@ -9,3 +9,5 @@ services:
       - "5000:5000"
     environment:
       - PYTHONUNBUFFERED=1
+    volumes:
+      - ./models:/app/models
