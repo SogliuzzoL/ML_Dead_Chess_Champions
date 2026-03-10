@@ -9,7 +9,7 @@ from maia2.utils import board_to_tensor, mirror_move
 
 from models.player_style import PlayerStyleEmbedding
 
-from .config import CHAMPIONS_EMBEDDINGS_PATH, base_player_dict
+from .config import CHAMPIONS_EMBEDDINGS_PATH, base_player_dict, logger
 from .mcts import MCTS
 
 
@@ -30,6 +30,9 @@ class MaiaEngine:
                 CHAMPIONS_EMBEDDINGS_PATH, map_location=self.device)
             self.model.elo_embedding.players_embeddings.load_state_dict(
                 state_dict)
+        else:
+            logger.warning(
+                f"Champions embeddings not found at {CHAMPIONS_EMBEDDINGS_PATH}.")
 
         self.player_to_idx = {player: idx + self.model.elo_embedding.max_maia_idx +
                               1 for idx, player in enumerate(base_player_dict.values())}
