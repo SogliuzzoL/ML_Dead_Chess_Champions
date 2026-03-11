@@ -52,11 +52,11 @@ class MaiaEngine:
                 board = chess.Board(fen)
         return board
 
-    def predict_mcts(self, fen, pgn, num_simulations=50, max_depth=4, threshold=0.05, penalty_value=10.0, active_elo: int | str = 2500, opponent_elo: int | str = 2500):
+    def predict_mcts(self, fen, pgn, num_simulations=500, max_depth=4, threshold=0.01, active_elo: int | str = 2500, opponent_elo: int | str = 2500):
         board = self.get_board_from_fen(fen, pgn)
         mcts = MCTS(self.predict_move)
         best_move, result = mcts.run(board, num_simulations, max_depth,
-                                     threshold=threshold, penalty_value=penalty_value, activ_elo=active_elo, opp_elo=opponent_elo)
+                                     threshold=threshold, activ_elo=active_elo, opp_elo=opponent_elo)
 
         return best_move, result
 

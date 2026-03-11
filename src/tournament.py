@@ -204,6 +204,7 @@ if __name__ == "__main__":
     standard_elos = list(elo_dict.keys())
 
     all_participants = champions_list + standard_elos
+    # all_participants = random.sample(all_participants, 4)
 
     tournament = SingleElimination(players=all_participants, num_games=2)
     tournament.run_tournament()
