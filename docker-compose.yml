@@ -1,6 +1,7 @@
 services:
   maia-chess:
-    build: .
+    # build: .
+    image: ghcr.io/sogliuzzol/ml_dead_chess_champions:main
     container_name: maia_chess_app
     restart: unless-stopped
     tty: true
