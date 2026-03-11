@@ -8,9 +8,6 @@ from .config import STOCKFISH_MODEL_PATH
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-stockfish = SimpleEngine.popen_uci(STOCKFISH_MODEL_PATH)
-
-
 class Node:
     def __init__(self, maia_prob=1.0) -> None:
         self.maia_prob = maia_prob
@@ -38,9 +35,9 @@ class MCTS:
     def __init__(self, child_generator):
         self.child_generator = child_generator
         self.root = Node()
-        self.scale = 400.0
 
-    def run(self, board: chess.Board, num_simulations: int, max_depth: int, threshold=0.01, activ_elo: int | str = 2500, opp_elo: int | str = 2500):
+    def run(self, board: chess.Board, num_simulations: int, max_depth: int, c_puct=1.5, threshold=0.01, scale=400.0, activ_elo: int | str = 2500, opp_elo: int | str = 2500):
+        stockfish = SimpleEngine.popen_uci(STOCKFISH_MODEL_PATH)
         self.root.generate_child(
             self.child_generator, board.fen(), activ_elo, opp_elo, threshold)
         for _ in range(num_simulations):
@@ -57,7 +54,7 @@ class MCTS:
                 best_child = None
 
                 for move, child in current_node.children.items():
-                    score = child.compute_Q() + child.compute_U(current_node.visits, c_puct=1.5)
+                    score = child.compute_Q() + child.compute_U(current_node.visits, c_puct=c_puct)
                     if score > best_score:
                         best_score = score
                         best_move = move
@@ -78,7 +75,7 @@ class MCTS:
                 current_node.stockfish_score = score
                 if score is not None:
                     cp = score.relative.score(mate_score=100000)
-                    normalized_score = np.tanh(cp / self.scale)
+                    normalized_score = np.tanh(cp / scale)
                     value -= normalized_score
 
             if depth < max_depth and not sim_board.is_game_over():
@@ -104,5 +101,5 @@ class MCTS:
 
         # for move, child in self.root.children.items():
         #     print(f"Move: {move}, Visits: {child.visits}, Value: {child.value}, Q: {child.compute_Q():.4f}, U: {child.compute_U(self.root.visits):.4f}, Stockfish Score: {child.stockfish_score}, Maia Prob: {child.maia_prob:.4f}")
-
+        stockfish.quit()
         return best_root_move, result
