@@ -23,9 +23,13 @@ def index():
 def get_move():
     data = request.get_json()
     try:
+        default_params = {'c_puct': 1.0, 'scale': 400.0,
+                          'threshold': 0.05, 'num_simulations': 50}
+
         move_uci, move_dict = engine.predict_mcts(
             data["fen"],
             data["pgn"],
+            **default_params,
             active_elo=data["active_elo"],
             opponent_elo=data["opponent_elo"]
         )

@@ -54,10 +54,10 @@ class MaiaEngine:
             board = chess.Board(fen)
         return board
 
-    def predict_mcts(self, fen, pgn, num_simulations=50, max_depth=3, c_puct=1.5, scale=400.0, threshold=0.01, active_elo: int | str = 2500, opponent_elo: int | str = 2500):
+    def predict_mcts(self, fen, pgn, num_simulations=50, c_puct=1.5, scale=400.0, threshold=0.01, active_elo: int | str = 2500, opponent_elo: int | str = 2500):
         board = self.get_board_from_fen(fen, pgn)
         mcts = MCTS(self.predict_move)
-        best_move, result = mcts.run(board, num_simulations, max_depth,
+        best_move, result = mcts.run(board, num_simulations,
                                      threshold=threshold, c_puct=c_puct, scale=scale, activ_elo=active_elo, opp_elo=opponent_elo)
 
         return best_move, result

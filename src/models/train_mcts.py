@@ -2,6 +2,7 @@ import os
 
 import optuna
 import pandas as pd
+from tqdm import tqdm
 
 from core.config import RESULT_FOLDER, TRAIN_SET_PATH, base_player_dict, logger
 from core.engine import MaiaEngine
@@ -10,11 +11,11 @@ from core.engine import MaiaEngine
 def create_objective(df_player, player_name):
     def objective(trial):
         engine = MaiaEngine()
-        c_puct = trial.suggest_float("c_puct", 0.5, 4.0)
-        scale = trial.suggest_float("scale", 100.0, 1000.0)
-        threshold = trial.suggest_float("threshold", 0.001, 0.05, log=True)
-        num_simulations = trial.suggest_int("num_simulations", 10, 1000)
-        max_depth = trial.suggest_int("max_depth", 1, 10)
+        c_puct = trial.suggest_float("c_puct", 0.5, 50, log=True)
+        scale = trial.suggest_float("scale", 100.0, 1000.0, log=True)
+        threshold = trial.suggest_float("threshold", 0.001, 0.1, log=True)
+        num_simulations = trial.suggest_int(
+            "num_simulations", 10, 500, log=True)
 
         correct_predictions = 0
 
@@ -23,7 +24,6 @@ def create_objective(df_player, player_name):
                 fen=row["fen"],
                 pgn="",
                 num_simulations=num_simulations,
-                max_depth=max_depth,
                 threshold=threshold,
                 active_elo=player_name,
                 c_puct=c_puct,
@@ -38,27 +38,32 @@ def create_objective(df_player, player_name):
 
 
 def train_all_players():
-    logger.info("Démarrage de l'optimisation globale pour tous les champions")
+    logger.info(
+        "Initiating comprehensive optimization protocol across all designated subjects.")
 
     df_full = pd.read_parquet(TRAIN_SET_PATH)
-
     results_list = []
 
-    for player_id, player_name in base_player_dict.items():
-        logger.info(f"Lancement de l'étude Optuna pour : {player_name}")
+    optuna.logging.set_verbosity(optuna.logging.DEBUG)
+
+    for player_id, player_name in tqdm(base_player_dict.items(), desc="Processing global optimization"):
+        logger.info(
+            f"Commencing Optuna hyperparameter study for entity: {player_name}.")
 
         df_player = df_full[df_full["player_name"] == player_name]
 
         if df_player.empty:
             logger.warning(
-                f"Aucune donnée trouvée pour {player_name}, saut de l'optimisation.")
+                f"Insufficient empirical data retrieved for {player_name}, bypassing optimization sequence."
+            )
             continue
-        df_player = df_player.sample(n=10, random_state=42)
+
+        df_player = df_player.sample(n=100)
 
         study = optuna.create_study(direction="maximize")
         objective_function = create_objective(df_player, player_name)
 
-        study.optimize(objective_function, n_trials=5)
+        study.optimize(objective_function, n_trials=50, n_jobs=1)
 
         best_params = study.best_params
 
@@ -78,4 +83,5 @@ def train_all_players():
     final_df.to_parquet(output_path, index=False)
 
     logger.info(
-        f"Optimisation terminée, tous les paramètres sont disponibles dans {output_path}")
+        f"Optimization framework concluded successfully, resulting parameters systematically exported to {output_path}."
+    )
