@@ -97,7 +97,7 @@ class MCTS:
                   for move, child in self.root.children.items()
                   }
 
-        for move, child in self.root.children.items():
-            print(f"Move: {move}, Visits: {child.visits}, Value: {child.value}, Q: {child.compute_Q():.4f}, U: {child.compute_U(self.root.visits):.4f}, Stockfish Score: {child.stockfish_score}, Maia Prob: {child.maia_prob:.4f}")
+        # for move, child in self.root.children.items():
+        #     print(f"Move: {move}, Visits: {child.visits}, Value: {child.value}, Q: {child.compute_Q():.4f}, U: {child.compute_U(self.root.visits):.4f}, Stockfish Score: {child.stockfish_score}, Maia Prob: {child.maia_prob:.4f}")
         stockfish.quit()
         return best_root_move, result

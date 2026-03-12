@@ -74,8 +74,6 @@ DATASET_COL_ORDER = ["game_id", "round", "player_name",
                      "player_color", "fen", "move", "repetition", "result"]
 
 STOCKFISH_MODEL_PATH = os.path.join(MODEL_FOLDER, "stockfish")
-STOCKFISH_CPL_ANALYSE_PATH = os.path.join(
-    DATA_FOLDER, "stockfish_cpl_analysis.parquet")
 
 VECTORS_PATH = os.path.join(DATA_FOLDER, "vectors.npy")
 PCA_MODEL_PATH = os.path.join(MODEL_FOLDER, "pca_model.pkl")

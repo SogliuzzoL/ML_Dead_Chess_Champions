@@ -11,11 +11,11 @@ from core.engine import MaiaEngine
 def create_objective(df_player, player_name):
     def objective(trial):
         engine = MaiaEngine()
-        c_puct = trial.suggest_float("c_puct", 0.5, 50, log=True)
+        c_puct = trial.suggest_float("c_puct", 0.1, 10.0, log=True)
         scale = trial.suggest_float("scale", 100.0, 1000.0, log=True)
         threshold = trial.suggest_float("threshold", 0.001, 0.1, log=True)
         num_simulations = trial.suggest_int(
-            "num_simulations", 10, 500, log=True)
+            "num_simulations", 30, 500, log=True)
 
         correct_predictions = 0
 
@@ -44,9 +44,9 @@ def train_all_players():
     df_full = pd.read_parquet(TRAIN_SET_PATH)
     results_list = []
 
-    optuna.logging.set_verbosity(optuna.logging.DEBUG)
+    # optuna.logging.set_verbosity(optuna.logging.WARNING)
 
-    for player_id, player_name in tqdm(base_player_dict.items(), desc="Processing global optimization"):
+    for player_id, player_name in tqdm(base_player_dict.items(), desc="Global Optimization", position=0):
         logger.info(
             f"Commencing Optuna hyperparameter study for entity: {player_name}.")
 
@@ -63,7 +63,12 @@ def train_all_players():
         study = optuna.create_study(direction="maximize")
         objective_function = create_objective(df_player, player_name)
 
-        study.optimize(objective_function, n_trials=50, n_jobs=1)
+        with tqdm(total=50, desc=f"Trials {player_name}", leave=False, position=1) as pbar:
+            def optuna_callback(study, trial):
+                pbar.update(1)
+
+            study.optimize(objective_function, n_trials=50,
+                           n_jobs=1, callbacks=[optuna_callback])
 
         best_params = study.best_params
 
@@ -71,7 +76,6 @@ def train_all_players():
             "player_id": player_id,
             "player_name": player_name,
             "num_simulations": best_params["num_simulations"],
-            "max_depth": best_params["max_depth"],
             "c_puct": best_params["c_puct"],
             "scale": best_params["scale"],
             "threshold": best_params["threshold"],
