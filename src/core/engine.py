@@ -4,12 +4,18 @@ import os
 import chess
 import chess.pgn
 import torch
+from chess.engine import SimpleEngine
 from maia2 import inference, model
 from maia2.utils import board_to_tensor, mirror_move
 
 from models.player_style import PlayerStyleEmbedding
 
-from .config import CHAMPIONS_EMBEDDINGS_PATH, base_player_dict, logger
+from .config import (
+    CHAMPIONS_EMBEDDINGS_PATH,
+    STOCKFISH_MODEL_PATH,
+    base_player_dict,
+    logger,
+)
 from .mcts import MCTS
 
 
@@ -54,9 +60,9 @@ class MaiaEngine:
             board = chess.Board(fen)
         return board
 
-    def predict_mcts(self, fen, pgn, num_simulations=50, c_puct=1.5, scale=400.0, threshold=0.01, active_elo: int | str = 2500, opponent_elo: int | str = 2500):
+    def predict_mcts(self, fen, pgn, stockfish: SimpleEngine, num_simulations=50, c_puct=1.5, scale=400.0, threshold=0.01, active_elo: int | str = 2500, opponent_elo: int | str = 2500):
         board = self.get_board_from_fen(fen, pgn)
-        mcts = MCTS(self.predict_move)
+        mcts = MCTS(self.predict_move, stockfish)
         best_move, result = mcts.run(board, num_simulations,
                                      threshold=threshold, c_puct=c_puct, scale=scale, activ_elo=active_elo, opp_elo=opponent_elo)
 

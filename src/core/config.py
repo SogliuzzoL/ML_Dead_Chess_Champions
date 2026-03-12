@@ -62,6 +62,8 @@ TRAIN_UMAP_RESULT_PATH = os.path.join(DATA_FOLDER, "train_umap_result.parquet")
 CHAMPIONS_EMBEDDINGS_PATH = os.path.join(
     MODEL_FOLDER, "champions_style_embeddings.pth")
 
+MCTS_OPTIMIZATION_DB_PATH = os.path.join(DATA_FOLDER, "mcts_optimization.db")
+
 # ===================
 
 DATASET_PATH = os.path.join(DATA_FOLDER, "chess_positions.parquet")

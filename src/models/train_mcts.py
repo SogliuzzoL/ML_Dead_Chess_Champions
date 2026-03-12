@@ -2,10 +2,20 @@ import os
 
 import optuna
 import pandas as pd
+from chess.engine import SimpleEngine
 from tqdm import tqdm
 
-from core.config import RESULT_FOLDER, TRAIN_SET_PATH, base_player_dict, logger
+from core.config import (
+    MCTS_OPTIMIZATION_DB_PATH,
+    RESULT_FOLDER,
+    STOCKFISH_MODEL_PATH,
+    TRAIN_SET_PATH,
+    base_player_dict,
+    logger,
+)
 from core.engine import MaiaEngine
+
+stockfish = SimpleEngine.popen_uci(STOCKFISH_MODEL_PATH)
 
 
 def create_objective(df_player, player_name):
@@ -23,6 +33,7 @@ def create_objective(df_player, player_name):
             best_move, _ = engine.predict_mcts(
                 fen=row["fen"],
                 pgn="",
+                stockfish=stockfish,
                 num_simulations=num_simulations,
                 threshold=threshold,
                 active_elo=player_name,
@@ -60,7 +71,13 @@ def train_all_players():
 
         df_player = df_player.sample(n=100)
 
-        study = optuna.create_study(direction="maximize")
+        study = optuna.create_study(
+            study_name=f"mcts_optim_{player_name}",
+            storage=f"sqlite:///{MCTS_OPTIMIZATION_DB_PATH}",
+            direction="maximize",
+            load_if_exists=True
+        )
+
         objective_function = create_objective(df_player, player_name)
 
         with tqdm(total=50, desc=f"Trials {player_name}", leave=False, position=1) as pbar:
@@ -85,6 +102,7 @@ def train_all_players():
     final_df = pd.DataFrame(results_list)
     output_path = os.path.join(RESULT_FOLDER, "players_mcts_params.parquet")
     final_df.to_parquet(output_path, index=False)
+    stockfish.quit()
 
     logger.info(
         f"Optimization framework concluded successfully, resulting parameters systematically exported to {output_path}."

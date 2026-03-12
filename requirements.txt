@@ -18,3 +18,4 @@ umap-learn==0.5.11
 scikit-learn==1.7.2
 cuml-cu12==26.2.0
 optuna==4.7.0
+optuna-dashboard==0.20.0

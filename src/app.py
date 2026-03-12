@@ -1,6 +1,7 @@
+from chess.engine import SimpleEngine
 from flask import Flask, jsonify, render_template, request
 
-from core.config import base_player_dict
+from core.config import STOCKFISH_MODEL_PATH, base_player_dict
 from core.engine import MaiaEngine
 
 app = Flask(__name__,
@@ -8,6 +9,8 @@ app = Flask(__name__,
 
 
 engine = MaiaEngine()
+
+stockfish = SimpleEngine.popen_uci(STOCKFISH_MODEL_PATH)
 
 
 @app.route("/")
@@ -26,9 +29,13 @@ def get_move():
         default_params = {'c_puct': 1.5, 'scale': 400.0,
                           'threshold': 0.01, 'num_simulations': 50}
 
+        default_params = {'c_puct': 0.7712165572590343, 'scale': 372.89149267459885,
+                          'threshold': 0.0042377857097987345, 'num_simulations': 118}
+
         move_uci, move_dict = engine.predict_mcts(
             data["fen"],
             data["pgn"],
+            stockfish,
             **default_params,
             active_elo=data["active_elo"],
             opponent_elo=data["opponent_elo"]

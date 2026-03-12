@@ -32,12 +32,12 @@ class Node:
 
 
 class MCTS:
-    def __init__(self, child_generator):
+    def __init__(self, child_generator, stockfish: SimpleEngine):
         self.child_generator = child_generator
         self.root = Node()
+        self.stockfish: SimpleEngine = stockfish
 
     def run(self, board: chess.Board, num_simulations: int, c_puct=1.5, threshold=0.01, scale=400.0, activ_elo: int | str = 2500, opp_elo: int | str = 2500):
-        stockfish = SimpleEngine.popen_uci(STOCKFISH_MODEL_PATH)
         self.root.generate_child(
             self.child_generator, board.fen(), activ_elo, opp_elo, threshold)
         for _ in range(num_simulations):
@@ -67,7 +67,7 @@ class MCTS:
             value = 0
 
             if current_node.stockfish_score is None:
-                analyse = stockfish.analyse(sim_board, Limit(depth=5))
+                analyse = self.stockfish.analyse(sim_board, Limit(depth=5))
                 score = analyse.get("score", None)
                 current_node.stockfish_score = score
                 if score is not None:
@@ -99,5 +99,4 @@ class MCTS:
 
         # for move, child in self.root.children.items():
         #     print(f"Move: {move}, Visits: {child.visits}, Value: {child.value}, Q: {child.compute_Q():.4f}, U: {child.compute_U(self.root.visits):.4f}, Stockfish Score: {child.stockfish_score}, Maia Prob: {child.maia_prob:.4f}")
-        stockfish.quit()
         return best_root_move, result
