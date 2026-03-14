@@ -5,7 +5,7 @@ from torch.optim.adam import Adam
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from core.config import AUTOENCODER_MODEL_PATH, UMAP_VECTORS_PATH, VECTORS_PATH, logger
+from core.config import AUTOENCODER_MODEL_PATH, logger
 from models.autoencoder import Autoencoder
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -22,7 +22,14 @@ class ChessDataset(Dataset):
         return torch.tensor(self.data[idx], dtype=torch.float32)
 
 
-def train_autoencoder(train_dataset, input_dim, latent_dim=128, num_epochs=10, batch_size=1024, learning_rate=1e-3):
+def train_autoencoder(
+    train_dataset,
+    input_dim,
+    latent_dim=128,
+    num_epochs=10,
+    batch_size=1024,
+    learning_rate=1e-3,
+):
     model = Autoencoder(input_dim, latent_dim).to(DEVICE)
     criterion = nn.BCELoss()
     optimizer = Adam(model.parameters(), lr=learning_rate)
@@ -32,7 +39,7 @@ def train_autoencoder(train_dataset, input_dim, latent_dim=128, num_epochs=10, b
         batch_size=batch_size,
         shuffle=True,
         num_workers=4,
-        pin_memory=True
+        pin_memory=True,
     )
 
     for epoch in range(num_epochs):
@@ -65,7 +72,8 @@ def run(input_path: str, output_path: str):
     encoded_vectors = []
 
     infer_loader = DataLoader(
-        train_dataset, batch_size=1024, shuffle=False, num_workers=4)
+        train_dataset, batch_size=1024, shuffle=False, num_workers=4
+    )
 
     with torch.no_grad():
         for batch in tqdm(infer_loader, desc="Encoding Vectors"):

@@ -31,13 +31,13 @@ def build_dataset():
     data = []
     data_count = {}
     for player_id, player_name in base_player_dict.items():
-        logger.info(
-            f"Converting PGN files for player {player_name} (ID: {player_id})")
+        logger.info(f"Converting PGN files for player {player_name} (ID: {player_id})")
 
         pgn_folder = os.path.join(DATA_FOLDER, player_id)
         if not os.path.exists(pgn_folder):
             logger.warning(
-                f"No PGN folder found for player {player_name} (ID: {player_id}). Skipping.")
+                f"No PGN folder found for player {player_name} (ID: {player_id}). Skipping."
+            )
             continue
         progress_bar = tqdm.tqdm(os.listdir(pgn_folder))
         for filename in progress_bar:
@@ -48,7 +48,8 @@ def build_dataset():
             game = pgn.read_game(open(pgn_path))
             if game is None:
                 logger.warning(
-                    f"Failed to read game from file {filename} for player {player_name}. Skipping.")
+                    f"Failed to read game from file {filename} for player {player_name}. Skipping."
+                )
                 continue
 
             header = game.headers
@@ -63,13 +64,15 @@ def build_dataset():
                 player_color = chess.BLACK
             else:
                 logger.warning(
-                    f"Player {player_name} not found in game headers for file {filename}. Skipping.")
+                    f"Player {player_name} not found in game headers for file {filename}. Skipping."
+                )
                 continue
 
             result = header.get("Result", "")
             if result not in ["1-0", "0-1", "1/2-1/2"]:
                 logger.warning(
-                    f"Unexpected game result '{result}' in file {filename} for player {player_name}. Skipping.")
+                    f"Unexpected game result '{result}' in file {filename} for player {player_name}. Skipping."
+                )
                 continue
 
             if player_name not in data_count:
@@ -80,7 +83,8 @@ def build_dataset():
             fen = header.get("FEN", None)
             if fen is not None:
                 logger.warning(
-                    f"Game in file {filename} for player {player_name} already has a FEN header. Skipping.")
+                    f"Game in file {filename} for player {player_name} already has a FEN header. Skipping."
+                )
                 continue
 
             board = game.board()
@@ -90,16 +94,18 @@ def build_dataset():
                     fen = board.fen()
                     move_uci = move.uci()
 
-                    data.append({
-                        "game_id": filename.split(".")[0],
-                        "round": board.fullmove_number,
-                        "player_name": player_name,
-                        "player_color": color,
-                        "fen": fen,
-                        "move": move_uci,
-                        "repetition": board.is_repetition(2),
-                        "result": result
-                    })
+                    data.append(
+                        {
+                            "game_id": filename.split(".")[0],
+                            "round": board.fullmove_number,
+                            "player_name": player_name,
+                            "player_color": color,
+                            "fen": fen,
+                            "move": move_uci,
+                            "repetition": board.is_repetition(2),
+                            "result": result,
+                        }
+                    )
                 board.push(move)
 
     df = pd.DataFrame(data, columns=DATASET_COL_ORDER)

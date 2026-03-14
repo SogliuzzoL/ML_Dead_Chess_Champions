@@ -3,8 +3,6 @@ import numpy as np
 import torch
 from chess.engine import Limit, PovScore, SimpleEngine
 
-from .config import STOCKFISH_MODEL_PATH
-
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -37,21 +35,34 @@ class MCTS:
         self.root = Node()
         self.stockfish: SimpleEngine = stockfish
 
-    def run(self, board: chess.Board, num_simulations: int, c_puct=1.5, threshold=0.01, scale=400.0, activ_elo: int | str = 2500, opp_elo: int | str = 2500):
+    def run(
+        self,
+        board: chess.Board,
+        num_simulations: int,
+        c_puct=1.5,
+        threshold=0.01,
+        scale=400.0,
+        activ_elo: int | str = 2500,
+        opp_elo: int | str = 2500,
+    ):
         self.root.generate_child(
-            self.child_generator, board.fen(), activ_elo, opp_elo, threshold)
+            self.child_generator, board.fen(), activ_elo, opp_elo, threshold
+        )
+        best_root_move = None
         for _ in range(num_simulations):
             current_node = self.root
             sim_board = board.copy()
             path = [current_node]
 
             while current_node.children:
-                best_score = -float('inf')
+                best_score = -float("inf")
                 best_move = None
                 best_child = None
 
                 for move, child in current_node.children.items():
-                    score = child.compute_Q() + child.compute_U(current_node.visits, c_puct=c_puct)
+                    score = child.compute_Q() + child.compute_U(
+                        current_node.visits, c_puct=c_puct
+                    )
                     if score > best_score:
                         best_score = score
                         best_move = move
@@ -77,7 +88,8 @@ class MCTS:
 
             if not sim_board.is_game_over():
                 current_node.generate_child(
-                    self.child_generator, sim_board.fen(), activ_elo, opp_elo, threshold)
+                    self.child_generator, sim_board.fen(), activ_elo, opp_elo, threshold
+                )
 
             for node in reversed(path):
                 node.visits += 1
@@ -93,9 +105,7 @@ class MCTS:
 
         assert best_root_move is not None, "Best root move is None"
 
-        result = {move: child.maia_prob
-                  for move, child in self.root.children.items()
-                  }
+        result = {move: child.maia_prob for move, child in self.root.children.items()}
 
         # for move, child in self.root.children.items():
         #     print(f"Move: {move}, Visits: {child.visits}, Value: {child.value}, Q: {child.compute_Q():.4f}, U: {child.compute_U(self.root.visits):.4f}, Stockfish Score: {child.stockfish_score}, Maia Prob: {child.maia_prob:.4f}")

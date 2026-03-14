@@ -13,11 +13,7 @@ from core.config import DATA_FOLDER, HEADERS, base_player_dict, logger
 os.makedirs(DATA_FOLDER, exist_ok=True)
 
 
-@retry(
-    stop=stop_after_delay(360),
-    wait=wait_exponential(max=60),
-    reraise=True
-)
+@retry(stop=stop_after_delay(360), wait=wait_exponential(max=60), reraise=True)
 def fetch_url(url: str) -> html.HtmlElement:
     response = requests.get(url, headers=HEADERS)
 
@@ -27,11 +23,7 @@ def fetch_url(url: str) -> html.HtmlElement:
     return html.fromstring(response.content)
 
 
-@retry(
-    stop=stop_after_delay(360),
-    wait=wait_exponential(max=60),
-    reraise=True
-)
+@retry(stop=stop_after_delay(360), wait=wait_exponential(max=60), reraise=True)
 def download_pgn(pid: str, gid: str, download_url: str) -> None:
     os.makedirs(os.path.join(DATA_FOLDER, pid), exist_ok=True)
     file_path = os.path.join(DATA_FOLDER, pid, f"{gid}.pgn")
@@ -49,7 +41,9 @@ def download_pgn(pid: str, gid: str, download_url: str) -> None:
     time.sleep(random.uniform(2, 4))
 
 
-def fetch_chessgames(player_id: str, player_name: str, executor: ThreadPoolExecutor) -> None:
+def fetch_chessgames(
+    player_id: str, player_name: str, executor: ThreadPoolExecutor
+) -> None:
     page_id = 1
 
     with tqdm(desc=f"Downloading {player_name}", unit=" pgn") as pbar:
@@ -68,10 +62,13 @@ def fetch_chessgames(player_id: str, player_name: str, executor: ThreadPoolExecu
                 cells = row.xpath(".//td")
                 link = cells[0].xpath(".//a/@href")
                 gid = link[0].split("gid=")[-1]
-                download_url = f"https://www.chessgames.com/njs/api/game/downloadPGN/{gid}"
+                download_url = (
+                    f"https://www.chessgames.com/njs/api/game/downloadPGN/{gid}"
+                )
 
-                futures.append(executor.submit(
-                    download_pgn, player_id, gid, download_url))
+                futures.append(
+                    executor.submit(download_pgn, player_id, gid, download_url)
+                )
 
             for future in as_completed(futures):
                 try:

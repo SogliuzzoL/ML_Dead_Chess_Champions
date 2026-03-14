@@ -22,25 +22,25 @@ if __name__ == "__main__":
         "--state",
         type=int,
         default=0,
-        help="Set to 1 to enable STATE_MODE, or 0 to disable it."
+        help="Set to 1 to enable STATE_MODE, or 0 to disable it.",
     )
     parser.add_argument(
         "--train",
         type=int,
         default=0,
-        help="Set to 1 to enable TRAIN_MODE, or 0 to disable it."
+        help="Set to 1 to enable TRAIN_MODE, or 0 to disable it.",
     )
     parser.add_argument(
         "--compute",
         type=int,
         default=0,
-        help="Set to 1 to enable COMPUTE_MODE, or 0 to disable it."
+        help="Set to 1 to enable COMPUTE_MODE, or 0 to disable it.",
     )
     parser.add_argument(
         "--pca",
         type=int,
         default=0,
-        help="Set to 1 to enable PCA_MODE, or 0 to disable it."
+        help="Set to 1 to enable PCA_MODE, or 0 to disable it.",
     )
 
     args = parser.parse_args()

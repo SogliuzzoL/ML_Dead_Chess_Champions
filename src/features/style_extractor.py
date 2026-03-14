@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
 import torch
-from maia2 import inference
+from maia2 import inference, model
 from maia2 import main as maia
-from maia2 import model
 
 from core.config import MAIA_COL_ORDER, logger
 
@@ -40,7 +39,6 @@ def extract_styles(input_path: str, output_path: str):
 
     inference.inference_batch(df_ready, maia_model, True, 128, 4)
 
-    logger.info("Embeddings shape: {}".format(
-        style_extractor.get_embeddings().shape))
+    logger.info("Embeddings shape: {}".format(style_extractor.get_embeddings().shape))
 
     np.save(output_path, style_extractor.get_embeddings())

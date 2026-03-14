@@ -15,8 +15,12 @@ from core.umap import StyleUMAP
 
 
 def train_umap(state_mode=False):
-    vectors_path = TRAIN_UMAP_VECTORS_PATH if not state_mode else TRAIN_MAIA_EMBEDDINGS_PATH
-    result_path = TRAIN_UMAP_RESULT_PATH if not state_mode else TRAIN_UMAP_STATE_RESULT_PATH
+    vectors_path = (
+        TRAIN_UMAP_VECTORS_PATH if not state_mode else TRAIN_MAIA_EMBEDDINGS_PATH
+    )
+    result_path = (
+        TRAIN_UMAP_RESULT_PATH if not state_mode else TRAIN_UMAP_STATE_RESULT_PATH
+    )
     model_path = UMAP_MODEL_PATH if not state_mode else UMAP_STATE_MODEL_PATH
 
     logger.info("Loading vectors from %s", vectors_path)

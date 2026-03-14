@@ -5,14 +5,16 @@ from typing import List, Optional
 
 import chess
 import chess.pgn
+from chess.engine import SimpleEngine
 from maia2 import inference
 
-from core.config import RESULT_FOLDER, base_player_dict, logger
+from core.config import RESULT_FOLDER, STOCKFISH_MODEL_PATH, base_player_dict, logger
 from core.engine import MaiaEngine
 
 
 def run_match_series(player_a="Tal", player_b="Karpov", num_games=2):
     engine = MaiaEngine()
+    stockfish = SimpleEngine.popen_uci(STOCKFISH_MODEL_PATH)
     pgn_output_dir = os.path.join(RESULT_FOLDER, "matches")
     os.makedirs(pgn_output_dir, exist_ok=True)
     series_results = []
@@ -46,8 +48,9 @@ def run_match_series(player_a="Tal", player_b="Karpov", num_games=2):
             move_uci, _ = engine.predict_mcts(
                 fen,
                 str(game),
+                stockfish,
                 active_elo=active_style,
-                opponent_elo=opponent_style
+                opponent_elo=opponent_style,
             )
 
             move_obj = chess.Move.from_uci(move_uci)
@@ -69,13 +72,17 @@ def run_match_series(player_a="Tal", player_b="Karpov", num_games=2):
             f"[Game {i + 1}/{num_games}] Match concluded. Duration: {board.fullmove_number} moves. Result: {result}."
         )
 
-    logger.info(
-        f"Match series terminated. Aggregate results: {series_results}.")
+    logger.info(f"Match series terminated. Aggregate results: {series_results}.")
     return series_results
 
 
 class MatchNode:
-    def __init__(self, left: 'Optional[MatchNode]' = None, right: 'Optional[MatchNode]' = None, player: Optional[str] = None):
+    def __init__(
+        self,
+        left: "Optional[MatchNode]" = None,
+        right: "Optional[MatchNode]" = None,
+        player: Optional[str] = None,
+    ):
         self.left = left
         self.right = right
         self.player = player
@@ -88,24 +95,24 @@ class TournamentManager:
         self.num_games = num_games
 
     def run_tournament(self):
-        raise NotImplementedError(
-            "This method must be implemented by the subclass."
-        )
+        raise NotImplementedError("This method must be implemented by the subclass.")
 
-    def _determine_winner(self, player_a: str, player_b: str, results: List[str]) -> str:
+    def _determine_winner(
+        self, player_a: str, player_b: str, results: List[str]
+    ) -> str:
         score_a = 0.0
         score_b = 0.0
 
         for i, res in enumerate(results):
-            if res == '1/2-1/2':
+            if res == "1/2-1/2":
                 score_a += 0.5
                 score_b += 0.5
-            elif res == '1-0':
+            elif res == "1-0":
                 if i % 2 == 0:
                     score_a += 1
                 else:
                     score_b += 1
-            elif res == '0-1':
+            elif res == "0-1":
                 if i % 2 == 0:
                     score_b += 1
                 else:
@@ -155,25 +162,32 @@ class SingleElimination(TournamentManager):
 
         node.winner = self._play_match(player_a, player_b)
 
-        logger.info("\n" + "="*50)
-        logger.info(
-            f"Tournament bracket updated. Advancing player: {node.winner}")
+        logger.info("\n" + "=" * 50)
+        logger.info(f"Tournament bracket updated. Advancing player: {node.winner}")
         self.display_bracket(self.root)
-        logger.info("="*50 + "\n")
+        logger.info("=" * 50 + "\n")
 
         return node.winner
 
-    def display_bracket(self, node: MatchNode, prefix: str = "", is_left: bool = True, is_root: bool = True):
+    def display_bracket(
+        self,
+        node: MatchNode,
+        prefix: str = "",
+        is_left: bool = True,
+        is_root: bool = True,
+    ):
         if node is None:
             return
 
         if node.right:
-            new_prefix = prefix + \
-                ("" if is_root else ("│   " if is_left else "    "))
+            new_prefix = prefix + ("" if is_root else ("│   " if is_left else "    "))
             self.display_bracket(node.right, new_prefix, False, False)
 
-        name = f"{node.winner} (Winner)" if node.winner else (
-            node.player if node.player else "[Pending Match]")
+        name = (
+            f"{node.winner} (Winner)"
+            if node.winner
+            else (node.player if node.player else "[Pending Match]")
+        )
 
         if is_root:
             logger.info(f"{name}")
@@ -182,14 +196,13 @@ class SingleElimination(TournamentManager):
             logger.info(f"{prefix}{indicator}{name}")
 
         if node.left:
-            new_prefix = prefix + \
-                ("" if is_root else ("    " if is_left else "│   "))
+            new_prefix = prefix + ("" if is_root else ("    " if is_left else "│   "))
             self.display_bracket(node.left, new_prefix, True, False)
 
     def run_tournament(self) -> str:
         logger.info("\nInitial Tournament Bracket:")
         self.display_bracket(self.root)
-        logger.info("\n" + "="*50 + "\n")
+        logger.info("\n" + "=" * 50 + "\n")
 
         champion = self._resolve(self.root)
 

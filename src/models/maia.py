@@ -20,23 +20,16 @@ if __name__ == "__main__":
         df_ready = df.loc[player_mask, MAIA_COL_ORDER].copy()
 
         logger.info(
-            f"Running inference for player {player} with {len(df_ready)} samples.")
-
-        df_result, accuracy = inference.inference_batch(
-            df_ready,
-            rapid_model,
-            verbose=True,
-            batch_size=128,
-            num_workers=4
+            f"Running inference for player {player} with {len(df_ready)} samples."
         )
 
-        logger.info(
-            f"Inference complete for player {player}. Accuracy: {accuracy:.2%}")
+        df_result, accuracy = inference.inference_batch(
+            df_ready, rapid_model, verbose=True, batch_size=128, num_workers=4
+        )
 
-        data.append({
-            "player": player,
-            "maia_accuracy": accuracy
-        })
+        logger.info(f"Inference complete for player {player}. Accuracy: {accuracy:.2%}")
+
+        data.append({"player": player, "maia_accuracy": accuracy})
 
     df_result = pd.DataFrame(data)
     df_result.to_parquet(MAIA_RESULT_PATH)

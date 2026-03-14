@@ -10,7 +10,7 @@ if __name__ == "__main__":
         "--download",
         type=int,
         default=0,
-        help="Set to 1 to enable DOWNLOAD_MODE, or 0 to disable it."
+        help="Set to 1 to enable DOWNLOAD_MODE, or 0 to disable it.",
     )
 
     args = parser.parse_args()

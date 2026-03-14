@@ -34,24 +34,26 @@ class PlayerDataset(Dataset):
         self.elo_dict = create_elo_dict()
         self.max_maia_idx = max(self.elo_dict.values())
 
-        self.player_to_idx = {player: idx + self.max_maia_idx +
-                              1 for idx, player in enumerate(player_dict.values())}
+        self.player_to_idx = {
+            player: idx + self.max_maia_idx + 1
+            for idx, player in enumerate(player_dict.values())
+        }
 
     def __len__(self):
         return len(self.df)
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        board = chess.Board(row['fen'])
-        move_uci = row['move']
+        board = chess.Board(row["fen"])
+        move_uci = row["move"]
 
-        if row['player_color'] == 'black':
+        if row["player_color"] == "black":
             board = board.mirror()
             move_uci = mirror_move(move_uci)
 
         board_tensor = board_to_tensor(board)
 
-        active_player = row['player_name']
+        active_player = row["player_name"]
         opponent_elo = 2500
 
         if active_player in self.player_to_idx:
@@ -70,23 +72,23 @@ def run_training(epochs=10, batch_size=512, lr=1e-4):
     maia_model = model.from_pretrained("rapid", DEVICE)
     n_players = len(base_player_dict)
     maia_model.elo_embedding = PlayerStyleEmbedding(
-        maia_model.elo_embedding, n_players).to(DEVICE)
+        maia_model.elo_embedding, n_players
+    ).to(DEVICE)
 
     all_moves = get_all_possible_moves()
     all_moves_dict = {move: i for i, move in enumerate(all_moves)}
     dataset = PlayerDataset(TRAIN_SET_PATH, base_player_dict, all_moves_dict)
-    loader = DataLoader(dataset, batch_size=batch_size,
-                        shuffle=True, num_workers=4)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4)
 
     maia_model.requires_grad_(False)
     maia_model.elo_embedding.players_embeddings.weight.requires_grad = True
 
-    optimizer = Adam(
-        maia_model.elo_embedding.players_embeddings.parameters(), lr=lr)
+    optimizer = Adam(maia_model.elo_embedding.players_embeddings.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
 
     logger.info(
-        f"Starting training for {epochs} epochs with batch size {batch_size} and learning rate {lr}")
+        f"Starting training for {epochs} epochs with batch size {batch_size} and learning rate {lr}"
+    )
 
     pbar_epochs = tqdm(range(epochs), desc="Total Epochs", unit="epoch")
 
@@ -94,12 +96,15 @@ def run_training(epochs=10, batch_size=512, lr=1e-4):
         maia_model.train()
         epoch_loss = 0
         pbar_batches = tqdm(
-            loader, desc=f"Epoch {epoch+1}/{epochs}", leave=False, unit="batch")
+            loader, desc=f"Epoch {epoch + 1}/{epochs}", leave=False, unit="batch"
+        )
 
         for boards, active_ids, opponent_ids, labels in pbar_batches:
             boards, active_ids, opponent_ids, labels = (
-                boards.to(DEVICE), active_ids.to(DEVICE),
-                opponent_ids.to(DEVICE), labels.to(DEVICE)
+                boards.to(DEVICE),
+                active_ids.to(DEVICE),
+                opponent_ids.to(DEVICE),
+                labels.to(DEVICE),
             )
 
             logits_maia, _, _ = maia_model(boards, active_ids, opponent_ids)
@@ -116,8 +121,10 @@ def run_training(epochs=10, batch_size=512, lr=1e-4):
         avg_loss = epoch_loss / len(loader)
 
         pbar_epochs.set_postfix({"avg_loss": f"{avg_loss:.4f}"})
-        logger.info(f"Final Epoch {epoch+1}/{epochs} | Loss: {avg_loss:.4f}")
+        logger.info(f"Final Epoch {epoch + 1}/{epochs} | Loss: {avg_loss:.4f}")
 
-    torch.save(maia_model.elo_embedding.players_embeddings.state_dict(),
-               CHAMPIONS_EMBEDDINGS_PATH)
+    torch.save(
+        maia_model.elo_embedding.players_embeddings.state_dict(),
+        CHAMPIONS_EMBEDDINGS_PATH,
+    )
     logger.info(f"Model saved to {CHAMPIONS_EMBEDDINGS_PATH}")

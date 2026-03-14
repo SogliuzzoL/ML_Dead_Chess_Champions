@@ -14,7 +14,7 @@ def plot_games_distributions():
         title="Distribution of moves played per historical champion",
         xlabel="Historical Champions",
         ylabel="Number of Moves",
-        output_filename=os.path.join(RESULT_FOLDER, "player_distribution.pdf")
+        output_filename=os.path.join(RESULT_FOLDER, "player_distribution.pdf"),
     )
 
     game_counts = df.groupby("player_name")["game_id"].nunique()
@@ -23,7 +23,7 @@ def plot_games_distributions():
         title="Distribution of games per historical champion",
         xlabel="Historical Champions",
         ylabel="Number of Games",
-        output_filename=os.path.join(RESULT_FOLDER, "player_game_count.pdf")
+        output_filename=os.path.join(RESULT_FOLDER, "player_game_count.pdf"),
     )
 
 
@@ -34,5 +34,5 @@ def plot_maia_accuracy_distribution():
         title="Maia-2 move accuracy per historical champion",
         xlabel="Historical Champions",
         ylabel="Maia-2 move accuracy",
-        output_filename=os.path.join(RESULT_FOLDER, "maia_accuracy.pdf")
+        output_filename=os.path.join(RESULT_FOLDER, "maia_accuracy.pdf"),
     )

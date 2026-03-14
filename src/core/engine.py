@@ -12,7 +12,6 @@ from models.player_style import PlayerStyleEmbedding
 
 from .config import (
     CHAMPIONS_EMBEDDINGS_PATH,
-    STOCKFISH_MODEL_PATH,
     base_player_dict,
     logger,
 )
@@ -27,25 +26,25 @@ class MaiaEngine:
 
         n_players = len(base_player_dict)
         self.model.elo_embedding = PlayerStyleEmbedding(
-            self.model.elo_embedding,
-            n_players
+            self.model.elo_embedding, n_players
         ).to(self.device)
 
         if os.path.exists(CHAMPIONS_EMBEDDINGS_PATH):
-            state_dict = torch.load(
-                CHAMPIONS_EMBEDDINGS_PATH, map_location=self.device)
-            self.model.elo_embedding.players_embeddings.load_state_dict(
-                state_dict)
+            state_dict = torch.load(CHAMPIONS_EMBEDDINGS_PATH, map_location=self.device)
+            self.model.elo_embedding.players_embeddings.load_state_dict(state_dict)
         else:
             logger.warning(
-                f"Champions embeddings not found at {CHAMPIONS_EMBEDDINGS_PATH}.")
+                f"Champions embeddings not found at {CHAMPIONS_EMBEDDINGS_PATH}."
+            )
 
-        self.player_to_idx = {player: idx + self.model.elo_embedding.max_maia_idx +
-                              1 for idx, player in enumerate(base_player_dict.values())}
+        self.player_to_idx = {
+            player: idx + self.model.elo_embedding.max_maia_idx + 1
+            for idx, player in enumerate(base_player_dict.values())
+        }
 
     def get_board_from_fen(self, fen, pgn):
         board = chess.Board()
-        if pgn != '':
+        if pgn != "":
             try:
                 pgn_io = io.StringIO(pgn)
                 game = chess.pgn.read_game(pgn_io)
@@ -60,11 +59,29 @@ class MaiaEngine:
             board = chess.Board(fen)
         return board
 
-    def predict_mcts(self, fen, pgn, stockfish: SimpleEngine, num_simulations=50, c_puct=1.5, scale=400.0, threshold=0.01, active_elo: int | str = 2500, opponent_elo: int | str = 2500):
+    def predict_mcts(
+        self,
+        fen,
+        pgn,
+        stockfish: SimpleEngine,
+        num_simulations=50,
+        c_puct=1.5,
+        scale=400.0,
+        threshold=0.01,
+        active_elo: int | str = 2500,
+        opponent_elo: int | str = 2500,
+    ):
         board = self.get_board_from_fen(fen, pgn)
         mcts = MCTS(self.predict_move, stockfish)
-        best_move, result = mcts.run(board, num_simulations,
-                                     threshold=threshold, c_puct=c_puct, scale=scale, activ_elo=active_elo, opp_elo=opponent_elo)
+        best_move, result = mcts.run(
+            board,
+            num_simulations,
+            threshold=threshold,
+            c_puct=c_puct,
+            scale=scale,
+            activ_elo=active_elo,
+            opp_elo=opponent_elo,
+        )
 
         return best_move, result
 
@@ -78,7 +95,9 @@ class MaiaEngine:
 
         return inference.map_to_category(int(val), elo_dict)
 
-    def predict_move(self, fen, active_elo: int | str = 2500, opponent_elo: int | str = 2500):
+    def predict_move(
+        self, fen, active_elo: int | str = 2500, opponent_elo: int | str = 2500
+    ):
         board = chess.Board(fen)
         is_mirrored = False
         if board.turn == chess.BLACK:
@@ -106,8 +125,7 @@ class MaiaEngine:
             final_move = mirror_move(move_uci) if is_mirrored else move_uci
             move_probs[final_move] = float(probs[i])
 
-        sorted_moves = sorted(move_probs.items(),
-                              key=lambda x: x[1], reverse=True)
+        sorted_moves = sorted(move_probs.items(), key=lambda x: x[1], reverse=True)
         best_move = sorted_moves[0][0]
 
         return best_move, dict(sorted_moves)
