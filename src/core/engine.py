@@ -3,10 +3,12 @@ import os
 
 import chess
 import chess.pgn
+import numpy as np
 import torch
 from chess.engine import SimpleEngine
 from maia2 import inference, model
 from maia2.utils import board_to_tensor, mirror_move
+from tqdm import tqdm
 
 from models.player_style import PlayerStyleEmbedding
 
@@ -129,3 +131,28 @@ class MaiaEngine:
         best_move = sorted_moves[0][0]
 
         return best_move, dict(sorted_moves)
+
+    def evaluate_batch(self, dataloader):
+        self.model.eval()
+        all_correct_preds = []
+        all_player_ids = []
+
+        with torch.no_grad():
+            for boards, active_ids, opponent_ids, labels, legal_masks in tqdm(
+                dataloader, desc="Batch Evaluation"
+            ):
+                boards = boards.to(self.device, non_blocking=True)
+                active_ids = active_ids.to(self.device, non_blocking=True)
+                opponent_ids = opponent_ids.to(self.device, non_blocking=True)
+                labels = labels.to(self.device, non_blocking=True)
+                legal_masks = legal_masks.to(self.device, non_blocking=True)
+
+                logits, _, _ = self.model(boards, active_ids, opponent_ids)
+
+                logits = logits.masked_fill(~legal_masks, -float("inf"))
+                predictions = logits.argmax(dim=-1)
+
+                all_correct_preds.append((predictions == labels).cpu().numpy())
+                all_player_ids.append(active_ids.cpu().numpy())
+
+        return np.concatenate(all_correct_preds), np.concatenate(all_player_ids)
