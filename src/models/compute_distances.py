@@ -1,3 +1,4 @@
+import os
 from itertools import combinations
 
 import numpy as np
@@ -6,6 +7,7 @@ import tqdm
 from scipy.spatial.distance import jensenshannon
 
 from core.config import (
+    CROSS_DISTANCES_TRAIN_TEST_RESULT_PATH,
     DISTANCES_TEST_RESULT_PATH,
     DISTANCES_TRAIN_RESULT_PATH,
     TEST_UMAP_RESULT_PATH,
@@ -73,3 +75,43 @@ def compute_distances(state_mode=False, is_test=False):
     print(distance_df.tail())
     distance_df.to_parquet(distances_path, index=False)
     logger.info("Saving distances...")
+
+
+def compute_train_test_distances(state_mode=False):
+    train_path = TRAIN_UMAP_STATE_RESULT_PATH if state_mode else TRAIN_UMAP_RESULT_PATH
+    test_path = TEST_UMAP_STATE_RESULT_PATH if state_mode else TEST_UMAP_RESULT_PATH
+
+    logger.info("Loading Train and Test UMAP latent representations...")
+    df_train = pd.read_parquet(train_path)
+    df_test = pd.read_parquet(test_path)
+
+    distance_df = []
+    player_names = df_train["player_name"].unique()
+
+    umap1_min = min(df_train["UMAP1"].min(), df_test["UMAP1"].min())
+    umap1_max = max(df_train["UMAP1"].max(), df_test["UMAP1"].max())
+    umap2_min = min(df_train["UMAP2"].min(), df_test["UMAP2"].min())
+    umap2_max = max(df_train["UMAP2"].max(), df_test["UMAP2"].max())
+    global_bounds = [[umap1_min, umap1_max], [umap2_min, umap2_max]]
+
+    progress_bar = tqdm.tqdm(player_names)
+    for player in progress_bar:
+        progress_bar.set_description(f"Computing Train vs Test divergence for {player}")
+
+        emb_train = df_train[df_train["player_name"] == player][
+            ["UMAP1", "UMAP2"]
+        ].values
+        emb_test = df_test[df_test["player_name"] == player][["UMAP1", "UMAP2"]].values
+
+        if len(emb_train) == 0 or len(emb_test) == 0:
+            continue
+
+        distance_js = compute_js_distance(
+            emb_train, emb_test, bins=50, bounds=global_bounds
+        )
+        distance_df.append({"Player": player, "JSDistance_Train_Test": distance_js})
+
+    logger.info("Exporting cross-distance metrics...")
+    distance_df = pd.DataFrame(distance_df)
+    distance_df.sort_values("JSDistance_Train_Test", inplace=True)
+    distance_df.to_parquet(CROSS_DISTANCES_TRAIN_TEST_RESULT_PATH, index=False)

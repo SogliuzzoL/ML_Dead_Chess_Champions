@@ -134,3 +134,6 @@ DISTANCES_TEST_RESULT_PATH = os.path.join(DATA_FOLDER, "player_distances_test.pa
 CROSS_DISTANCES_RESULT_PATH = os.path.join(
     DATA_FOLDER, "cross_distances_test_vs_gen.parquet"
 )
+CROSS_DISTANCES_TRAIN_TEST_RESULT_PATH = os.path.join(
+    DATA_FOLDER, "cross_distances_train_test.parquet"
+)

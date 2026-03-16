@@ -13,11 +13,14 @@ from core.config import (
 )
 from features.compute_vectors import compute_vectors
 from features.style_extractor import extract_styles
-from models.compute_distances import compute_distances
+from models.compute_distances import compute_distances, compute_train_test_distances
 from models.train_autoencoder import infer_autoencoder, run_autoencoder
 from models.train_pca import infer_pca, train_pca
 from models.train_umap import infer_umap, train_umap
-from visualization.visualize_distances import visualize_distances
+from visualization.visualize_distances import (
+    visualize_distances,
+    visualize_train_test_distances,
+)
 from visualization.visualize_umap import visualize_umap
 
 if __name__ == "__main__":
@@ -72,3 +75,6 @@ if __name__ == "__main__":
     compute_distances(STATE_MODE, is_test=True)
     visualize_distances(STATE_MODE, is_test=True)
     visualize_umap(PLAYER_REFERENCE, STATE_MODE, is_test=True)
+
+    compute_train_test_distances(STATE_MODE)
+    visualize_train_test_distances(STATE_MODE)
