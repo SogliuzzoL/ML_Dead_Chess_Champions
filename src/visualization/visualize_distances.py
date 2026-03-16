@@ -39,5 +39,4 @@ def visualize_train_test_distances(state_mode=False):
         xlabel="Historical Champions",
         ylabel="Jensen, Shannon Distance",
         output_filename=output_filename,
-        color="#2E86C1",
     )
