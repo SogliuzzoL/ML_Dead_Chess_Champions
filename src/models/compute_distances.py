@@ -6,10 +6,12 @@ import tqdm
 from scipy.spatial.distance import jensenshannon
 
 from core.config import (
-    DISTANCES_RESULT_PATH,
-    DISTANCES_STATE_RESULT_PATH,
-    UMAP_RESULT_PATH,
-    UMAP_STATE_RESULT_PATH,
+    DISTANCES_TEST_RESULT_PATH,
+    DISTANCES_TRAIN_RESULT_PATH,
+    TEST_UMAP_RESULT_PATH,
+    TEST_UMAP_STATE_RESULT_PATH,
+    TRAIN_UMAP_RESULT_PATH,
+    TRAIN_UMAP_STATE_RESULT_PATH,
     logger,
 )
 
@@ -24,11 +26,17 @@ def compute_js_distance(emb1, emb2, bins=15, bounds=None):
     return jensenshannon(p, q, base=2)
 
 
-def compute_distances(state_mode=False):
-    result_path = UMAP_STATE_RESULT_PATH if state_mode else UMAP_RESULT_PATH
-    distances_path = (
-        DISTANCES_STATE_RESULT_PATH if state_mode else DISTANCES_RESULT_PATH
-    )
+def compute_distances(state_mode=False, is_test=False):
+    if is_test:
+        result_path = (
+            TEST_UMAP_STATE_RESULT_PATH if state_mode else TEST_UMAP_RESULT_PATH
+        )
+        distances_path = DISTANCES_TEST_RESULT_PATH
+    else:
+        result_path = (
+            TRAIN_UMAP_STATE_RESULT_PATH if state_mode else TRAIN_UMAP_RESULT_PATH
+        )
+        distances_path = DISTANCES_TRAIN_RESULT_PATH
 
     logger.info("Loading UMAP results...")
     df = pd.read_parquet(result_path)

@@ -60,27 +60,37 @@ def train_autoencoder(
     return model
 
 
-def run(input_path: str, output_path: str):
+def infer_autoencoder(input_path: str, output_path: str):
     data = np.load(input_path, mmap_mode="r")
     input_dim = data.shape[1]
 
-    train_dataset = ChessDataset(data)
-
-    model = train_autoencoder(train_dataset, input_dim)
-
+    model = Autoencoder(input_dim, latent_dim=128).to(DEVICE)
+    model.load_state_dict(torch.load(AUTOENCODER_MODEL_PATH, map_location=DEVICE))
     model.eval()
-    encoded_vectors = []
 
+    infer_dataset = ChessDataset(data)
     infer_loader = DataLoader(
-        train_dataset, batch_size=1024, shuffle=False, num_workers=4
+        infer_dataset, batch_size=1024, shuffle=False, num_workers=4
     )
 
+    encoded_vectors = []
     with torch.no_grad():
-        for batch in tqdm(infer_loader, desc="Encoding Vectors"):
+        for batch in tqdm(infer_loader, desc="Encoding Test Vectors"):
             batch = batch.to(DEVICE, non_blocking=True)
             latent = model.encode(batch)
             encoded_vectors.append(latent.cpu().numpy())
 
     result = np.concatenate(encoded_vectors, axis=0)
     np.save(output_path, result)
+
+
+def run_autoencoder(input_path: str, output_path: str):
+    data = np.load(input_path, mmap_mode="r")
+    input_dim = data.shape[1]
+
+    train_dataset = ChessDataset(data)
+
+    model = train_autoencoder(train_dataset, input_dim)
     torch.save(model.state_dict(), AUTOENCODER_MODEL_PATH)
+
+    infer_autoencoder(input_path, output_path)

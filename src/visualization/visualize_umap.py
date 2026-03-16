@@ -1,20 +1,32 @@
 import pandas as pd
 
-from core.config import RESULT_FOLDER, UMAP_RESULT_PATH, UMAP_STATE_RESULT_PATH, logger
+from core.config import (
+    RESULT_FOLDER,
+    TEST_UMAP_RESULT_PATH,
+    TEST_UMAP_STATE_RESULT_PATH,
+    TRAIN_UMAP_RESULT_PATH,
+    TRAIN_UMAP_STATE_RESULT_PATH,
+    logger,
+)
 from visualization.utils_plot import plot_player_centroids, plot_style_comparison
 
 
-def visualize_umap(player_list, state_mode=False):
-    result_path = UMAP_STATE_RESULT_PATH if state_mode else UMAP_RESULT_PATH
-    centroids_path = (
-        f"{RESULT_FOLDER}/centroids_map.pdf"
-        if not state_mode
-        else f"{RESULT_FOLDER}/centroids_map_state.pdf"
-    )
+def visualize_umap(player_list, state_mode=False, is_test=False):
+    if is_test:
+        result_path = (
+            TEST_UMAP_STATE_RESULT_PATH if state_mode else TEST_UMAP_RESULT_PATH
+        )
+    else:
+        result_path = (
+            TRAIN_UMAP_STATE_RESULT_PATH if state_mode else TRAIN_UMAP_RESULT_PATH
+        )
+
+    suffix = "_test" if is_test else "_train"
+    state_suffix = "_state" if state_mode else ""
+
+    centroids_path = f"{RESULT_FOLDER}/centroids_map{state_suffix}{suffix}.pdf"
     style_comparison_path = (
-        f"{RESULT_FOLDER}/style_comparison.pdf"
-        if not state_mode
-        else f"{RESULT_FOLDER}/style_comparison_state.pdf"
+        f"{RESULT_FOLDER}/style_comparison{state_suffix}{suffix}.pdf"
     )
 
     logger.info("Loading UMAP results...")

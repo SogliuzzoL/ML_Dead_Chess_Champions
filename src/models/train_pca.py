@@ -17,3 +17,13 @@ def train_pca(input_path: str, output_path: str):
     )
     model.save_model(PCA_MODEL_PATH)
     np.save(output_path, result)
+
+
+def infer_pca(input_path: str, output_path: str):
+    pca_vectors = np.load(input_path, mmap_mode="r")
+    logger.info(f"Loading pre-trained PCA model from {PCA_MODEL_PATH}")
+
+    model = StylePCA(n_components=128).load_model(PCA_MODEL_PATH)
+    result = model.transform(pca_vectors)
+
+    np.save(output_path, result)
