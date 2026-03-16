@@ -1,120 +1,139 @@
 # ML Dead Chess Champions
 
+## Overview
+
+This project extracts player style and distance metrics from game data, using a combination of:
+- Maia-2 for move evaluation
+- Stockfish for tactical/positional analysis
+- Feature extraction (move- and state-based)
+- Dimensionality reduction (autoencoder/PCA + UMAP)
+- Visualization and a small web frontend
+
+It is intended for researchers and engineers who want to explore player similarity, cluster playing styles, and experiment with latent representations derived from chess games.
+
 ## Requirements
 
-- Python `3.10.19` (required by Maia-2 dependencies)
+- Python 3.10.19 (required by Maia-2 dependencies)
 - Stockfish executable available at `models/stockfish`
+- Typical Python packages listed in `requirements.txt`
 
 If your Stockfish binary is in a different location, update `STOCKFISH_MODEL_PATH` in `src/core/config.py`.
+
+## Quickstart
+
+From the repository root:
+
+1. Install dependencies:
+```ML_Dead_Chess_Champions/README.md#L301-306
+pip install -r requirements.txt
+```
+
+2. Build the dataset (downloads games unless you disable it):
+```ML_Dead_Chess_Champions/README.md#L307-312
+python src/run_data.py --download 1
+```
+
+3. Run the UMAP/style pipeline (use move mode by default):
+```ML_Dead_Chess_Champions/README.md#L313-318
+python src/run_umap.py --state 0 --compute 1 --train 1
+```
+
+4. Start the web app:
+```ML_Dead_Chess_Champions/README.md#L319-324
+python src/app.py
+# then open http://localhost:5000
+```
+
+These commands are the minimal sequence to get a local instance with fresh data, trained embeddings, and the web UI.
 
 ## Installation
 
 From the repository root:
-
-```bash
+```ML_Dead_Chess_Champions/README.md#L325-327
 pip install -r requirements.txt
 ```
 
 Run scripts from the project root using `python src/...`.
 
-## Run Scripts
+## Run Scripts (summary)
 
 All commands below are executed from the repository root.
 
-### 1) Build the data pipeline
+- Data pipeline
+  - `python src/run_data.py` — build dataset (use `--download 1` to fetch PGNs).
+- Style / UMAP pipeline
+  - `python src/run_umap.py` — extract features, train latent model/UMAP, compute distances, and produce visualizations.
+  - Key flags: `--state` (0 move-based, 1 state-based), `--compute` (recompute features), `--train` (train models), `--pca` (use PCA instead of autoencoder when relevant).
+- Web app
+  - `python src/app.py` — run Flask app at `0.0.0.0:5000`.
 
-Fetches games, builds the dataset, and generates distribution plots.
+See the detailed examples in the original Run Scripts section below for more combinations and notes.
 
-- `--download 0` (default): skip game download and use existing local PGNs/data
-- `--download 1`: download games before building the dataset
+## Docker
 
-```bash
-python src/run_data.py
-python src/run_data.py --download 1
+A Dockerfile and docker-compose.yml are provided for containerized usage.
+
+- Build image (from repo root):
+```ML_Dead_Chess_Champions/README.md#L328-333
+docker build -t ml-dead-chess-champs .
 ```
 
-### 2) Run the UMAP/style pipeline
-
-Runs style/vector extraction (optional), latent model training (optional), UMAP training (optional), distance computation, and visualizations.
-
-Available parameters:
-
-- `--state 0` (default): move-based style vectors
-- `--state 1`: state-based style extraction
-- `--compute 0` (default): skip style/vector recomputation
-- `--compute 1`: recompute input representations before training/inference
-	- with `--state 0`: runs move-based vector computation
-	- with `--state 1`: runs state-based style extraction
-- `--train 0` (default): skip latent + UMAP training and reuse existing trained artifacts
-- `--train 1`: run training phase before distance computation/visualization
-- `--pca 0` (default): when training in move mode, use the autoencoder latent model
-- `--pca 1`: when training in move mode, use PCA instead of the autoencoder
-
-Notes:
-
-- `--pca` is only relevant when `--train 1 --state 0`.
-- Distance computation and visualization are always executed at the end.
-
-```bash
-# Reuse existing trained artifacts (move mode)
-python src/run_umap.py --state 0
-
-# Reuse existing trained artifacts (state mode)
-python src/run_umap.py --state 1
-
-# Compute only distances + plots (move mode)
-python src/run_umap.py --state 0 --compute 0 --train 0
-
-# Train with autoencoder latent model (move mode)
-python src/run_umap.py --state 0 --train 1 --pca 0
-
-# Train with PCA latent model (move mode)
-python src/run_umap.py --state 0 --train 1 --pca 1
-
-# Recompute state features + train UMAP (state mode)
-python src/run_umap.py --state 1 --compute 1 --train 1
+- Run with docker-compose:
+```ML_Dead_Chess_Champions/README.md#L334-338
+docker-compose up --build
 ```
 
-### 3) Start the web app
+Adjust volumes and environment in `docker-compose.yml` as needed for persistent data storage and model paths.
 
-Starts the Flask app on `0.0.0.0:5000`.
+## Configuration
 
-```bash
-python src/app.py
+Important configuration and constants:
+
+- Stockfish path:
+  - `STOCKFISH_MODEL_PATH` in `src/core/config.py` — update this if your binary is located elsewhere.
+- Data & outputs:
+  - Default outputs are saved under `data/` (see Main Outputs below).
+- Model artifacts:
+  - Trained UMAP, latent models, and intermediate artifacts are stored under `data/` as produced by the pipelines.
+
+Example: to change Stockfish path, open `src/core/config.py` and set:
+```ML_Dead_Chess_Champions/README.md#L339-343
+# inside src/core/config.py
+STOCKFISH_MODEL_PATH = "models/stockfish"  # change to your path
 ```
 
-Open `http://localhost:5000`.
-
-## Main Outputs
-
-Default generated outputs include:
-
-- `data/chess_positions.parquet`
-- `data/maia_result.parquet`
-- `data/umap_result.parquet` or `data/umap_state_result.parquet`
-- `data/player_distances.parquet` or `data/player_state_distances.parquet`
-- `data/stockfish_cpl_analysis.parquet`
+These are the primary artifacts used for visualization and analysis.
 
 ## Project Structure
 
-### Root files
-- **`Dockerfile`**: Docker image configuration
-- **`docker-compose.yml`**: Docker Compose configuration
-- **`requirements.txt`**: Python dependencies
-- **`README.md`**: project documentation
+Root files
+- `Dockerfile`: Docker image configuration
+- `docker-compose.yml`: Docker Compose configuration
+- `requirements.txt`: Python dependencies
+- `README.md`: project documentation
 
-### Source (`src/`)
-- **`app.py`**: Flask app for playing against Maia-2
-- **`run_data.py`**: dataset build pipeline orchestration
-- **`run_umap.py`**: style extraction/UMAP/distance pipeline orchestration
-- **`core/`**: core configuration and engine modules
-- **`data/`**: data ingestion and build scripts
-- **`features/`**: feature extraction and Stockfish analysis
-- **`models/`**: Maia inference and model utilities
-- **`visualization/`**: plotting and visualization scripts
+Source (`src/`)
+- `app.py`: Flask app for playing against Maia-2
+- `run_data.py`: dataset build pipeline orchestration
+- `run_umap.py`: style extraction/UMAP/distance pipeline orchestration
+- `core/`: core configuration and engine modules
+- `data/`: data ingestion and build scripts
+- `features/`: feature extraction and Stockfish analysis
+- `models/`: Maia inference and model utilities
+- `visualization/`: plotting and visualization scripts
 
-### Web (`templates/`)
-- **`index.html`**: web frontend template
+Web (`templates/`)
+- `index.html`: web frontend template
+
+## Detailed Run Examples
+
+(Kept concise here; full examples should be used via the top-level Run Scripts section)
+- Move-mode UMAP reusing artifacts:
+  - `python src/run_umap.py --state 0`
+- State-mode full recompute + train:
+  - `python src/run_umap.py --state 1 --compute 1 --train 1`
+- Start web app:
+  - `python src/app.py`
 
 ## Use of AI in the project
 All comments in this repository were generated by **Github Copilot**.
