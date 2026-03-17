@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from core.config import logger
+
 
 def plot_bar_distribution(
     data,
@@ -77,7 +79,7 @@ def plot_bar_distribution(
 
     plt.tight_layout()
     plt.savefig(output_filename, format="pdf", dpi=300)
-    print(f"Plot saved to: {output_filename}")
+    logger.info(f"Plot saved to: {output_filename}")
 
 
 def plot_player_centroids(
@@ -139,7 +141,7 @@ def plot_player_centroids(
 
     plt.tight_layout()
     plt.savefig(output_filename, format="pdf", dpi=300)
-    print(f"Centroids plot saved to: {output_filename}")
+    logger.info(f"Centroids plot saved to: {output_filename}")
 
 
 def plot_style_comparison(
@@ -160,7 +162,9 @@ def plot_style_comparison(
     subset = df[df["player_name"].isin(players_to_compare)]
 
     if subset.empty:
-        print("Erreur : Aucun des joueurs demandés n'a été trouvé dans le DataFrame.")
+        logger.info(
+            "Erreur : Aucun des joueurs demandés n'a été trouvé dans le DataFrame."
+        )
         return
 
     plt.rcParams.update(
@@ -193,7 +197,7 @@ def plot_style_comparison(
 
     plt.tight_layout()
     plt.savefig(output_filename, format="pdf", dpi=300)
-    print(f"Comparison plot saved to: {output_filename}")
+    logger.info(f"Comparison plot saved to: {output_filename}")
 
 
 def plot_distance_heatmap(
@@ -248,4 +252,4 @@ def plot_distance_heatmap(
 
     plt.tight_layout()
     plt.savefig(output_filename, format="pdf", dpi=300, bbox_inches="tight")
-    print(f"Heatmap successfully saved to: {output_filename}")
+    logger.info(f"Heatmap successfully saved to: {output_filename}")

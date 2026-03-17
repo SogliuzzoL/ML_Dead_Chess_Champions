@@ -1,5 +1,6 @@
 import logging
 import os
+from token import OP
 
 # ==========================================
 # CORE DIRECTORIES
@@ -82,6 +83,7 @@ DATASET_PATH = os.path.join(DATA_FOLDER, "chess_positions.parquet")
 TRAIN_SET_PATH = os.path.join(DATA_FOLDER, "train_set.parquet")
 TEST_SET_PATH = os.path.join(DATA_FOLDER, "test_set.parquet")
 GENERATED_SET_PATH = os.path.join(DATA_FOLDER, "generated_set.parquet")
+OPENING_STATS_PATH = os.path.join(DATA_FOLDER, "opening_stats.parquet")
 
 # ==========================================
 # TRAINING PIPELINE (MODEL FITTING)
