@@ -3,6 +3,8 @@ import numpy as np
 import torch
 from chess.engine import Limit, PovScore, SimpleEngine
 
+# import nnue_interface
+
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -78,6 +80,7 @@ class MCTS:
             value = 0
 
             if current_node.stockfish_score is None:
+                # print(nnue_interface.get_evaluation(sim_board.fen()))
                 analyse = self.stockfish.analyse(sim_board, Limit(depth=5))
                 score = analyse.get("score", None)
                 current_node.stockfish_score = score

@@ -68,7 +68,7 @@ class PlayerDataset(Dataset):
         return board_tensor, active_player_idx, opponent_idx, move_label
 
 
-def run_training(epochs=10, batch_size=512, lr=1e-4):
+def run_training(epochs=30, batch_size=2048, lr=1e-4):
     maia_model = model.from_pretrained("rapid", DEVICE)
     n_players = len(base_player_dict)
     maia_model.elo_embedding = PlayerStyleEmbedding(
