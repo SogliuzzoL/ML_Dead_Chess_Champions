@@ -1,7 +1,7 @@
 import chess
 import numpy as np
 import torch
-from chess.engine import Limit, PovScore, SimpleEngine
+from chess.engine import PovScore, SimpleEngine
 
 # import nnue_interface
 

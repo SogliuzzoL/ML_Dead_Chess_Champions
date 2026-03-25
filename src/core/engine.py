@@ -1,4 +1,5 @@
 import io
+import logging
 import os
 
 import chess
@@ -12,36 +13,37 @@ from tqdm import tqdm
 
 from models.player_style import PlayerStyleEmbedding
 
-from .config import (
-    CHAMPIONS_EMBEDDINGS_PATH,
-    base_player_dict,
-    logger,
-)
+from .config import ProjectConfig
 from .mcts import MCTS
+
+logger = logging.getLogger(__name__)
 
 
 class MaiaEngine:
-    def __init__(self, model_type="rapid"):
+    def __init__(self, config: ProjectConfig, model_type="rapid"):
+        self.config = config
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = model.from_pretrained(model_type, self.device)
         self.prepare = inference.prepare()
 
-        n_players = len(base_player_dict)
+        n_players = len(self.config.base_player_dict)
         self.model.elo_embedding = PlayerStyleEmbedding(
             self.model.elo_embedding, n_players
         ).to(self.device)
 
-        if os.path.exists(CHAMPIONS_EMBEDDINGS_PATH):
-            state_dict = torch.load(CHAMPIONS_EMBEDDINGS_PATH, map_location=self.device)
+        if os.path.exists(self.config.champions_embeddings_path):
+            state_dict = torch.load(
+                self.config.champions_embeddings_path, map_location=self.device
+            )
             self.model.elo_embedding.players_embeddings.load_state_dict(state_dict)
         else:
             logger.warning(
-                f"Champions embeddings not found at {CHAMPIONS_EMBEDDINGS_PATH}."
+                f"Champions embeddings not found at {self.config.champions_embeddings_path}."
             )
 
         self.player_to_idx = {
             player: idx + self.model.elo_embedding.max_maia_idx + 1
-            for idx, player in enumerate(base_player_dict.values())
+            for idx, player in enumerate(self.config.base_player_dict.values())
         }
 
     def get_board_from_fen(self, fen, pgn):

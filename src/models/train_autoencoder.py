@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import torch
 from torch import nn
@@ -5,10 +7,11 @@ from torch.optim.adam import Adam
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from core.config import AUTOENCODER_MODEL_PATH, logger
+from core.config import ProjectConfig
 from models.autoencoder import Autoencoder
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger = logging.getLogger(__name__)
 
 
 class ChessDataset(Dataset):
@@ -60,12 +63,14 @@ def train_autoencoder(
     return model
 
 
-def infer_autoencoder(input_path: str, output_path: str):
+def infer_autoencoder(config: ProjectConfig, input_path: str, output_path: str):
     data = np.load(input_path, mmap_mode="r")
     input_dim = data.shape[1]
 
     model = Autoencoder(input_dim, latent_dim=128).to(DEVICE)
-    model.load_state_dict(torch.load(AUTOENCODER_MODEL_PATH, map_location=DEVICE))
+    model.load_state_dict(
+        torch.load(config.autoencoder_model_path, map_location=DEVICE)
+    )
     model.eval()
 
     infer_dataset = ChessDataset(data)
@@ -84,13 +89,13 @@ def infer_autoencoder(input_path: str, output_path: str):
     np.save(output_path, result)
 
 
-def run_autoencoder(input_path: str, output_path: str):
+def run_autoencoder(config: ProjectConfig, input_path: str, output_path: str):
     data = np.load(input_path, mmap_mode="r")
     input_dim = data.shape[1]
 
     train_dataset = ChessDataset(data)
 
     model = train_autoencoder(train_dataset, input_dim)
-    torch.save(model.state_dict(), AUTOENCODER_MODEL_PATH)
+    torch.save(model.state_dict(), config.autoencoder_model_path)
 
-    infer_autoencoder(input_path, output_path)
+    infer_autoencoder(config, input_path, output_path)

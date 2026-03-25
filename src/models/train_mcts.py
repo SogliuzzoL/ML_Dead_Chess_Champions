@@ -1,3 +1,4 @@
+import logging
 import os
 
 import optuna
@@ -5,21 +6,23 @@ import pandas as pd
 from chess.engine import SimpleEngine
 from tqdm import tqdm
 
-from core.config import (
-    MCTS_OPTIMIZATION_DB_PATH,
-    RESULT_FOLDER,
-    STOCKFISH_MODEL_PATH,
-    TRAIN_SET_PATH,
-    base_player_dict,
-    logger,
-)
+from core.config import ProjectConfig
 from core.engine import MaiaEngine
 
+logger = logging.getLogger(__name__)
 
-def create_objective(df_player, player_name):
+
+def create_objective(config: ProjectConfig, df_player: pd.DataFrame, player_name: str):
+    """
+    Constructs the Optuna objective function, utilizing the dynamic configuration
+    for engine instantiation and Stockfish path resolution.
+    """
+
     def objective(trial):
-        engine = MaiaEngine()
-        stockfish = SimpleEngine.popen_uci(STOCKFISH_MODEL_PATH)
+        # Instantiate the modernized engine requiring the config object
+        engine = MaiaEngine(config=config)
+        stockfish = SimpleEngine.popen_uci(config.stockfish_model_path)
+
         c_puct = trial.suggest_float("c_puct", 0.1, 10.0, log=True)
         scale = trial.suggest_float("scale", 100.0, 1000.0, log=True)
         threshold = trial.suggest_float("threshold", 0.001, 0.1, log=True)
@@ -28,7 +31,7 @@ def create_objective(df_player, player_name):
         correct_predictions = 0
 
         for _, row in df_player.iterrows():
-            best_move, _ = engine.predict_mcts(
+            best_move, _, _ = engine.predict_mcts(
                 fen=row["fen"],
                 pgn="",
                 stockfish=stockfish,
@@ -42,47 +45,36 @@ def create_objective(df_player, player_name):
                 correct_predictions += 1
 
         stockfish.quit()
-
         return correct_predictions / len(df_player)
 
     return objective
 
 
-def train_all_players():
-    logger.info(
-        "Initiating comprehensive optimization protocol across all designated subjects."
-    )
-
-    df_full = pd.read_parquet(TRAIN_SET_PATH)
+def optimize_mcts(config: ProjectConfig):
+    """
+    Orchestrates the MCTS hyperparameter optimization across all defined champions.
+    """
+    logger.info(f"Loading training data from {config.train_set_path}")
+    df = pd.read_parquet(config.train_set_path)
     results_list = []
 
-    # optuna.logging.set_verbosity(optuna.logging.WARNING)
-
-    for player_id, player_name in tqdm(
-        base_player_dict.items(), desc="Global Optimization", position=0
-    ):
-        logger.info(
-            f"Commencing Optuna hyperparameter study for entity: {player_name}."
-        )
-
-        df_player = df_full[df_full["player_name"] == player_name]
+    for player_id, player_name in config.base_player_dict.items():
+        df_player = df[df["player_name"] == player_name].copy()
 
         if df_player.empty:
             logger.warning(
-                f"Insufficient empirical data retrieved for {player_name}, bypassing optimization sequence."
+                f"No data found for player {player_name} in the evaluation sequence."
             )
             continue
 
-        # df_player = df_player.sample(n=100)
-
         study = optuna.create_study(
             study_name=f"mcts_optim_{player_name}",
-            storage=f"sqlite:///{MCTS_OPTIMIZATION_DB_PATH}",
+            storage=f"sqlite:///{config.mcts_optimization_db_path}",
             direction="maximize",
             load_if_exists=True,
         )
 
-        objective_function = create_objective(df_player, player_name)
+        objective_function = create_objective(config, df_player, player_name)
 
         with tqdm(
             total=50, desc=f"Trials {player_name}", leave=False, position=1
@@ -110,9 +102,7 @@ def train_all_players():
         )
 
     final_df = pd.DataFrame(results_list)
-    output_path = os.path.join(RESULT_FOLDER, "players_mcts_params.parquet")
-    final_df.to_parquet(output_path, index=False)
-
+    final_df.to_parquet(config.mcts_params_result_path, index=False)
     logger.info(
-        f"Optimization framework concluded successfully, resulting parameters systematically exported to {output_path}."
+        f"Successfully saved optimized MCTS parameters to {config.mcts_params_result_path}"
     )

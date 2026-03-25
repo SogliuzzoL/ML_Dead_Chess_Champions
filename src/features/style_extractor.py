@@ -1,10 +1,14 @@
+import logging
+
 import numpy as np
 import pandas as pd
 import torch
 from maia2 import inference, model
 from maia2 import main as maia
 
-from core.config import MAIA_COL_ORDER, logger
+from core.config import ProjectConfig
+
+logger = logging.getLogger(__name__)
 
 
 class MAIA2StyleExtractor:
@@ -26,7 +30,18 @@ class MAIA2StyleExtractor:
         return np.concatenate(self.embeddings, axis=0)
 
 
-def extract_styles(input_path: str, output_path: str):
+def extract_styles(config: ProjectConfig, is_test: bool = False):
+    """
+    Extracts underlying style embeddings from the MAIA model leveraging the injected configuration.
+    """
+    input_path = config.test_set_path if is_test else config.train_set_path
+    output_path = (
+        config.test_maia_embeddings_path
+        if is_test
+        else config.train_maia_embeddings_path
+    )
+
+    logger.info(f"Extracting styles from {input_path}")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     maia_model = model.from_pretrained("rapid", device=device)
     style_extractor = MAIA2StyleExtractor(maia_model)
@@ -35,10 +50,15 @@ def extract_styles(input_path: str, output_path: str):
     df["active_elo"] = 2500
     df["opponent_elo"] = 2500
 
-    df_ready: pd.DataFrame = df.loc[:, MAIA_COL_ORDER].copy()
+    # Dynamically calling the column order from the configuration instance
+    df_ready: pd.DataFrame = df.loc[:, config.maia_col_order].copy()
 
     inference.inference_batch(df_ready, maia_model, True, 128, 4)
 
-    logger.info("Embeddings shape: {}".format(style_extractor.get_embeddings().shape))
+    embeddings = style_extractor.get_embeddings()
+    logger.info(
+        f"Saving extracted embeddings with shape {embeddings.shape} to {output_path}"
+    )
+    np.save(output_path, embeddings)
 
-    np.save(output_path, style_extractor.get_embeddings())
+    style_extractor.remove_hook()

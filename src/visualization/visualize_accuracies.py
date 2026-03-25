@@ -4,15 +4,17 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from core.config import RESULT_FOLDER
+from core.config import ProjectConfig
 
 
-def visualize_player_accuracies():
+def visualize_player_accuracies(config: ProjectConfig):
     """
     Generates academic visualizations of the model's predictive accuracy
     across the evaluated chess champions.
     """
-    input_path = os.path.join(RESULT_FOLDER, "player_accuracies_comparison.parquet")
+    input_path = os.path.join(
+        config.result_folder, "player_accuracies_comparison.parquet"
+    )
 
     if not os.path.exists(input_path):
         print(f"Error: The accuracy results file was not found at {input_path}")
@@ -52,19 +54,19 @@ def visualize_player_accuracies():
         )
 
     plt.tight_layout()
-    bar_output_path = os.path.join(RESULT_FOLDER, "bar_prediction_accuracy.pdf")
+    bar_output_path = os.path.join(config.result_folder, "bar_prediction_accuracy.pdf")
     plt.savefig(bar_output_path, dpi=300, bbox_inches="tight")
     plt.close()
 
     # ---------------------------------------------------------
-    # Plot 2: Scatter Plot (Accuracy vs. Number of Games)
+    # Plot 2: Scatter Plot (Accuracy vs. Number of Positions)
     # ---------------------------------------------------------
     plt.figure(figsize=(10, 6))
     sns.scatterplot(
         data=df,
-        x="n_games",
-        y="accuracy",
-        hue="accuracy",
+        x="n_positions",
+        y="custom_accuracy",
+        hue="custom_accuracy",
         palette="viridis",
         s=150,
         legend=False,
@@ -79,19 +81,17 @@ def visualize_player_accuracies():
     # Annotate points with the player's name
     for i in range(df.shape[0]):
         plt.text(
-            df["n_games"].iloc[i] + (df["n_games"].max() * 0.01),
-            df["accuracy"].iloc[i],
+            df["n_positions"].iloc[i] + (df["n_positions"].max() * 0.01),
+            df["custom_accuracy"].iloc[i],
             df["player"].iloc[i],
             fontsize=9,
         )
 
     plt.tight_layout()
-    scatter_output_path = os.path.join(RESULT_FOLDER, "scatter_accuracy_vs_volume.pdf")
+    scatter_output_path = os.path.join(
+        config.result_folder, "scatter_accuracy_vs_volume.pdf"
+    )
     plt.savefig(scatter_output_path, dpi=300, bbox_inches="tight")
     plt.close()
 
-    print(f"Visualizations successfully saved to {RESULT_FOLDER}")
-
-
-if __name__ == "__main__":
-    visualize_player_accuracies()
+    print(f"Visualizations successfully saved to {config.result_folder}")
