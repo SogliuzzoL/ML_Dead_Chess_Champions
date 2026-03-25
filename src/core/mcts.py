@@ -114,6 +114,14 @@ class MCTS:
                 value -= current_node.generate_child(
                     self.child_generator, sim_board.fen(), activ_elo, opp_elo, threshold
                 )
+            else:
+                result = sim_board.result()
+                if result == "1-0":
+                    value = 1.0 if board.turn == chess.WHITE else -1.0
+                elif result == "0-1":
+                    value = 1.0 if board.turn == chess.BLACK else -1.0
+                else:
+                    value = 0.0
 
             for node in reversed(path):
                 node.visits += 1
