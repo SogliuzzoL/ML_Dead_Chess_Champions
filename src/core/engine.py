@@ -75,7 +75,7 @@ class MaiaEngine:
     ):
         board = self.get_board_from_fen(fen, pgn)
         mcts = MCTS(self.predict_move, stockfish)
-        best_move, result = mcts.run(
+        best_move, result, tree_data = mcts.run(
             board,
             num_simulations,
             threshold=threshold,
@@ -85,7 +85,7 @@ class MaiaEngine:
             opp_elo=opponent_elo,
         )
 
-        return best_move, result
+        return best_move, result, tree_data
 
     def _get_style_idx(self, val: int | str):
         if isinstance(val, str) and val in self.player_to_idx:
@@ -113,7 +113,7 @@ class MaiaEngine:
 
         self.model.eval()
         with torch.no_grad():
-            logits_maia, _, _ = self.model(board_tensor, s_self, s_oppo)
+            logits_maia, _, logits_value = self.model(board_tensor, s_self, s_oppo)
             all_moves_dict, _, all_moves_dict_reversed = self.prepare
             legal_mask = torch.zeros(logits_maia.size(-1)).to(device)
             for move in board.legal_moves:
@@ -130,7 +130,7 @@ class MaiaEngine:
         sorted_moves = sorted(move_probs.items(), key=lambda x: x[1], reverse=True)
         best_move = sorted_moves[0][0]
 
-        return best_move, dict(sorted_moves)
+        return best_move, dict(sorted_moves), logits_value.item()
 
     def evaluate_batch(self, dataloader):
         self.model.eval()

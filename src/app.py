@@ -28,18 +28,11 @@ def get_move():
         default_params = {
             "c_puct": 1.5,
             "scale": 400.0,
-            "threshold": 0.01,
-            "num_simulations": 50,
+            "threshold": 0,
+            "num_simulations": 500,
         }
 
-        default_params = {
-            "c_puct": 0.7712165572590343,
-            "scale": 372.89149267459885,
-            "threshold": 0.0042377857097987345,
-            "num_simulations": 118,
-        }
-
-        move_uci, move_dict = engine.predict_mcts(
+        move_uci, move_dict, tree_data = engine.predict_mcts(
             data["fen"],
             data["pgn"],
             stockfish,
@@ -54,7 +47,9 @@ def get_move():
         #     data["opponent_elo"]
         # )
 
-        return jsonify({"move": move_uci, "probabilities": move_dict})
+        return jsonify(
+            {"move": move_uci, "probabilities": move_dict, "tree": tree_data}
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

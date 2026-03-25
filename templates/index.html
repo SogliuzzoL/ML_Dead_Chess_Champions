@@ -88,6 +88,29 @@
                 font-size: 0.9em;
                 color: #f1c40f;
             }
+
+            #mcts-container {
+                margin-top: 20px;
+                width: 500px;
+                background: #34495e;
+                padding: 15px;
+                border-radius: 8px;
+                max-height: 400px;
+                overflow-y: auto;
+            }
+            .tree-list {
+                list-style-type: none;
+                padding-left: 20px;
+                font-family: "Courier New", Courier, monospace;
+                font-size: 0.85em;
+                color: #ecf0f1;
+            }
+            .tree-node {
+                margin: 4px 0;
+            }
+            .node-stats {
+                color: #f1c40f;
+            }
         </style>
     </head>
 
@@ -164,6 +187,11 @@
             </div>
         </div>
 
+        <div id="mcts-container">
+            <h4 style="margin-top: 0">🌳 Arbre MCTS</h4>
+            <div id="mcts-tree">L'arbre s'affichera ici...</div>
+        </div>
+
         <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
         <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
@@ -227,6 +255,25 @@
                 }
             }
 
+            function renderTree(node) {
+                if (!node) return "";
+
+                let html = `<li class="tree-node">
+                    <strong>${node.name}</strong>
+                    <span class="node-stats">(Visites: ${node.visits}, Q: ${node.q_value}, P: ${node.prob})</span>`;
+
+                if (node.children && node.children.length > 0) {
+                    html += '<ul class="tree-list">';
+                    for (let child of node.children) {
+                        html += renderTree(child);
+                    }
+                    html += "</ul>";
+                }
+
+                html += "</li>";
+                return html;
+            }
+
             async function makeAIMove() {
                 if (game.game_over()) return;
 
@@ -262,6 +309,14 @@
                         }
                         document.getElementById("move-probs").innerHTML =
                             probsHtml;
+                    }
+
+                    if (data.tree) {
+                        document.getElementById("mcts-tree").innerHTML =
+                            `<ul class="tree-list" style="padding-left: 0;">${renderTree(data.tree)}</ul>`;
+                    } else {
+                        document.getElementById("mcts-tree").innerHTML =
+                            "Aucune donnée d'arbre disponible.";
                     }
 
                     game.move(data.move, { sloppy: true });

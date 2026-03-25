@@ -12,7 +12,7 @@ def visualize_player_accuracies():
     Generates academic visualizations of the model's predictive accuracy
     across the evaluated chess champions.
     """
-    input_path = os.path.join(RESULT_FOLDER, "player_accuracies.parquet")
+    input_path = os.path.join(RESULT_FOLDER, "player_accuracies_comparison.parquet")
 
     if not os.path.exists(input_path):
         print(f"Error: The accuracy results file was not found at {input_path}")
@@ -21,7 +21,7 @@ def visualize_player_accuracies():
     df = pd.read_parquet(input_path)
 
     # Ensure the dataframe is sorted by accuracy for the bar chart
-    df = df.sort_values("accuracy", ascending=False)
+    df = df.sort_values("custom_accuracy", ascending=False)
 
     # Set the visual style for academic plotting
     sns.set_theme(style="whitegrid", context="paper", font_scale=1.2)
@@ -30,7 +30,7 @@ def visualize_player_accuracies():
     # Plot 1: Ranked Bar Chart of Prediction Accuracy
     # ---------------------------------------------------------
     plt.figure(figsize=(12, 6))
-    barplot = sns.barplot(data=df, x="player", y="accuracy", palette="viridis")
+    barplot = sns.barplot(data=df, x="player", y="custom_accuracy", palette="viridis")
 
     plt.title(
         "Move Prediction Accuracy per Historical Champion", pad=20, fontweight="bold"

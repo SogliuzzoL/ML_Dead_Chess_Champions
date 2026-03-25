@@ -25,10 +25,31 @@ class Node:
         return c_puct * self.maia_prob * np.sqrt(parent_visits) / (1 + self.visits)
 
     def generate_child(self, child_generator, fen, activ_elo, opp_elo, threshold=0.01):
-        _, results = child_generator(fen, activ_elo, opp_elo)
+        _, results, value = child_generator(fen, activ_elo, opp_elo)
         for move, prob in results.items():
             if prob > threshold:
                 self.children[move] = Node(prob)
+        return value
+
+    def to_dict(self, move_name="Racine"):
+        if self.visits == 0:
+            return None
+
+        children_data = []
+        for move, child in self.children.items():
+            child_dict = child.to_dict(move)
+            if child_dict is not None:
+                children_data.append(child_dict)
+
+        children_data.sort(key=lambda x: x["visits"], reverse=True)
+
+        return {
+            "name": move_name,
+            "visits": self.visits,
+            "q_value": round(self.compute_Q(), 3),
+            "prob": round(self.maia_prob, 3),
+            "children": children_data,
+        }
 
 
 class MCTS:
@@ -79,18 +100,18 @@ class MCTS:
 
             value = 0
 
-            if current_node.stockfish_score is None:
-                # print(nnue_interface.get_evaluation(sim_board.fen()))
-                analyse = self.stockfish.analyse(sim_board, Limit(depth=5))
-                score = analyse.get("score", None)
-                current_node.stockfish_score = score
-                if score is not None:
-                    cp = score.relative.score(mate_score=100000)
-                    normalized_score = np.tanh(cp / scale)
-                    value -= normalized_score
+            # if current_node.stockfish_score is None:
+            #     # print(nnue_interface.get_evaluation(sim_board.fen()))
+            #     analyse = self.stockfish.analyse(sim_board, Limit(depth=5))
+            #     score = analyse.get("score", None)
+            #     current_node.stockfish_score = score
+            #     if score is not None:
+            #         cp = score.relative.score(mate_score=100000)
+            #         normalized_score = np.tanh(cp / scale)
+            #         value -= normalized_score
 
             if not sim_board.is_game_over():
-                current_node.generate_child(
+                value -= current_node.generate_child(
                     self.child_generator, sim_board.fen(), activ_elo, opp_elo, threshold
                 )
 
@@ -112,4 +133,5 @@ class MCTS:
 
         # for move, child in self.root.children.items():
         #     print(f"Move: {move}, Visits: {child.visits}, Value: {child.value}, Q: {child.compute_Q():.4f}, U: {child.compute_U(self.root.visits):.4f}, Stockfish Score: {child.stockfish_score}, Maia Prob: {child.maia_prob:.4f}")
-        return best_root_move, result
+        tree_data = self.root.to_dict()
+        return best_root_move, result, tree_data
