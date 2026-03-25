@@ -1,18 +1,25 @@
+import logging
 import os
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from core.config import OPENING_STATS_PATH, RESULT_FOLDER, logger
+from core.config import ProjectConfig
 from visualization.utils_plot import plot_bar_distribution
 
+logger = logging.getLogger(__name__)
 
-def plot_global_top_openings(df: pd.DataFrame, top_n: int = 20):
+
+def plot_global_top_openings(config: ProjectConfig, df: pd.DataFrame, top_n: int = 20):
+    """
+    Generates a global visualization of the most frequently utilized chess openings
+    across the entire champion dataset.
+    """
     valid_openings = df[df["opening"] != "Unknown"]
     opening_counts = valid_openings["opening"].value_counts().head(top_n)
 
-    output_path = os.path.join(RESULT_FOLDER, "global_top_openings.pdf")
+    output_path = os.path.join(config.result_folder, "global_top_openings.pdf")
 
     plot_bar_distribution(
         data=opening_counts,
@@ -24,96 +31,95 @@ def plot_global_top_openings(df: pd.DataFrame, top_n: int = 20):
     )
 
 
-def plot_individual_opening_profiles(df: pd.DataFrame, top_n: int = 10):
+def plot_individual_opening_profiles(
+    config: ProjectConfig, df: pd.DataFrame, top_n: int = 10
+):
     """
-    Generates tailored opening repertoire profiles for each chess champion.
-    Produces a side-by-side bar chart (White vs. Black) representing the most
-    frequently played openings as a percentage of their total games with that color.
+    Constructs comprehensive opening repertoire profiles for each individual champion,
+    presenting a comparative analysis of White versus Black strategies as a percentage
+    of total games played with each color.
     """
     valid_df = df[df["opening"] != "Unknown"]
-
     players = valid_df["player_name"].unique()
 
+    # Configuring academic visual aesthetics
     plt.rcParams.update(
         {
+            "font.family": "serif",
             "font.serif": ["Times New Roman"],
             "font.size": 11,
             "axes.grid": True,
             "grid.alpha": 0.3,
+            "axes.spines.top": False,
+            "axes.spines.right": False,
         }
     )
 
     for player in players:
         player_df = valid_df[valid_df["player_name"] == player]
-
-        fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=False)
+        fig, axes = plt.subplots(1, 2, figsize=(14, 7), sharey=True)
         fig.suptitle(
             f"Opening Repertoire Profile: {player}",
             fontsize=16,
             fontweight="bold",
-            y=1.05,
+            y=0.98,
         )
 
         for idx, color in enumerate(["White", "Black"]):
             color_df = player_df[player_df["player_color"] == color]
 
             if not color_df.empty:
-                top_openings = (
-                    color_df["opening"].value_counts(normalize=True).head(top_n) * 100
-                )
+                counts = color_df["opening"].value_counts().head(top_n)
+                # Calculating usage as a percentage of total games for the specific color
+                opening_pct = (counts / counts.sum()) * 100
 
                 sns.barplot(
-                    x=top_openings.index,
-                    y=top_openings.values,
-                    hue=top_openings.index,
+                    x=opening_pct.index,
+                    y=opening_pct.values,
                     ax=axes[idx],
-                    palette="YlGnBu" if color == "White" else "RdPu",
-                    edgecolor="black",
-                    linewidth=0.7,
-                    zorder=3,
-                    legend=False,
+                    palette="viridis" if color == "White" else "magma",
                 )
 
                 axes[idx].set_title(
                     f"Top {top_n} Openings as {color}", pad=15, fontweight="bold"
                 )
                 axes[idx].set_xlabel("ECO Codes", fontweight="bold")
-
-                axes[idx].set_ylabel("Usage Percentage (%)", fontweight="bold")
+                axes[idx].set_ylabel("Usage Frequency (%)", fontweight="bold")
                 axes[idx].tick_params(axis="x", rotation=45)
-
-                axes[idx].spines["top"].set_visible(False)
-                axes[idx].spines["right"].set_visible(False)
             else:
-                axes[idx].set_title(f"No empirical data available for {color}", pad=15)
+                axes[idx].set_title(f"Insufficient Empirical Data for {color}", pad=15)
                 axes[idx].axis("off")
 
-        plt.tight_layout()
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 
+        # Dynamic path resolution for individual PDF artifacts
         output_filename = f"opening_profile_{player.lower().replace(' ', '_')}.pdf"
-        output_path = os.path.join(RESULT_FOLDER, output_filename)
+        output_path = os.path.join(config.result_folder, output_filename)
 
         plt.savefig(output_path, format="pdf", dpi=300, bbox_inches="tight")
         plt.close(fig)
 
         logger.info(
-            f"Repertoire profile successfully generated and saved to: {output_path}"
+            f"Repertoire profile for {player} successfully generated and saved to: {output_path}"
         )
 
 
-def run_individual_profiles():
-    if not os.path.exists(OPENING_STATS_PATH):
-        logger.info(
-            f"Error: The required dataset {OPENING_STATS_PATH} could not be located."
+def run_individual_profiles(config: ProjectConfig):
+    """
+    Orchestrates the entire opening analysis workflow, verifying dataset integrity
+    before initiating the graphical rendering sequence.
+    """
+    if not os.path.exists(config.opening_stats_path):
+        logger.error(
+            f"Critical Error: Opening statistics dataset not found at {config.opening_stats_path}"
         )
         return
 
-    df = pd.read_parquet(OPENING_STATS_PATH)
+    logger.info(f"Loading opening statistics from {config.opening_stats_path}")
+    df = pd.read_parquet(config.opening_stats_path)
 
-    logger.info("Initiating the generation of the global top openings visualization...")
-    plot_global_top_openings(df)
+    logger.info("Initiating global opening distribution visualization...")
+    plot_global_top_openings(config, df)
 
-    logger.info(
-        "Initiating the generation of individual opening profiles for all champions..."
-    )
-    plot_individual_opening_profiles(df)
+    logger.info("Generating individual champion repertoire profiles...")
+    plot_individual_opening_profiles(config, df)
