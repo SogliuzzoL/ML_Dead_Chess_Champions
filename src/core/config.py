@@ -1,38 +1,147 @@
-import logging
-import os
-from dataclasses import dataclass, field
-from typing import Dict, List
+"""Application configuration models and filesystem helpers.
 
-# ==========================================
-# GLOBAL CONFIGURATION
-# ==========================================
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Referer": "https://www.google.com/",
-}
+This module centralizes project-wide configuration using Pydantic models. It
+defines structured containers for filesystem paths, data acquisition settings,
+and modelling hyperparameters. Helper methods are provided to create the
+required directory layout and to load configuration overrides from a YAML file.
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%H:%M:%S",
-)
-logger = logging.getLogger(__name__)
+All user-visible documentation is presented in formal academic English to
+support reproducible and well-documented data processing workflows.
+"""
+
+from pathlib import Path
+
+import yaml
+from pydantic import BaseModel, Field
 
 
-@dataclass
-class ProjectConfig:
-    # ==========================================
-    # CORE DIRECTORIES
-    # ==========================================
-    data_folder: str = "data"
-    model_folder: str = "models"
-    result_folder: str = "results"
+class PathsConfig(BaseModel):
+    """Filesystem layout and canonical paths used by the project.
 
-    # ==========================================
-    # PLAYER DEFINITIONS & DATA STRUCTURES
-    # ==========================================
-    base_player_dict: Dict[str, str] = field(
+    Attributes
+    ----------
+    data, raw_data, model, result, evaluation_dir : str
+        Base directories used to organize the project's artifacts.
+    dataset_path, train_set_path, test_set_path, opening_stats_path : str
+        Canonical locations for processed dataset artifacts.
+    train_vectors_path, test_vectors_path : str
+        Paths to the NumPy arrays containing position vectors.
+    autoencoder_model_path : str
+        Location where the trained autoencoder state dict is persisted.
+    train_encoded_vectors_path, test_encoded_vectors_path : str
+        Paths for latent vectors produced by the autoencoder.
+    train_umap_result_path, test_umap_result_path, umap_model_path : str
+        Paths for UMAP outputs and serialized model.
+    """
+
+    data: str = "data/"
+    raw_data: str = "data/raw/"
+    model: str = "models/"
+    result: str = "results/"
+    evaluation_dir: str = "results/evaluation/"
+
+    dataset_path: str = "data/processed/dataset.parquet"
+    train_set_path: str = "data/processed/train.parquet"
+    test_set_path: str = "data/processed/test.parquet"
+    opening_stats_path: str = "data/processed/opening_stats.parquet"
+
+    train_vectors_path: str = "data/processed/train_vectors.npy"
+    test_vectors_path: str = "data/processed/test_vectors.npy"
+
+    autoencoder_model_path: str = "models/saved/autoencoder.pth"
+
+    train_encoded_vectors_path: str = "data/processed/train_encoded_vectors.npy"
+    test_encoded_vectors_path: str = "data/processed/test_encoded_vectors.npy"
+
+    train_umap_result_path: str = "data/processed/train_umap.parquet"
+    test_umap_result_path: str = "data/processed/test_umap.parquet"
+    umap_model_path: str = "models/saved/style_umap.pkl"
+
+    def make_directories(self):
+        """Ensure all configured filesystem paths exist on disk.
+
+        For each configured path, this helper creates parent directories as
+        required. If a configured value represents a file (i.e., has a suffix),
+        its parent directory is created; otherwise the path itself is treated
+        as a directory and created.
+        """
+        for path_str in self.model_dump().values():
+            path_obj = Path(path_str)
+
+            if path_obj.suffix:
+                path_obj.parent.mkdir(parents=True, exist_ok=True)
+            else:
+                path_obj.mkdir(parents=True, exist_ok=True)
+
+    def get_embeddings_path(self, method: str, is_test: bool) -> str:
+        """Return a canonical path for embeddings produced by `method`.
+
+        Parameters
+        ----------
+        method : str
+            Short identifier of the embedding method (e.g., 'umap', 'pca').
+        is_test : bool
+            Whether the requested path is for the test split.
+
+        Returns
+        -------
+        str
+            Filesystem path where embeddings for the requested split and method
+            should be stored.
+        """
+        split = "test" if is_test else "train"
+        return f"data/processed/{split}_{method}.parquet"
+
+    def get_distances_path(self, method: str, is_test: bool) -> str:
+        """Return a canonical path for distance tables for a given method."""
+        split = "test" if is_test else "train"
+        return f"{self.evaluation_dir}distances_{split}_{method}.parquet"
+
+    def get_cross_distances_path(self, method: str) -> str:
+        """Return the canonical path for cross-split distances for `method`."""
+        return f"{self.evaluation_dir}cross_distances_{method}.parquet"
+
+
+class UMAPConfig(BaseModel):
+    """Configuration for UMAP dimensionality reduction."""
+
+    n_components: int = 2
+
+
+class AutoencoderConfig(BaseModel):
+    """Hyperparameters for the autoencoder training routine."""
+
+    latent_dim: int = 128
+    epochs: int = 10
+    batch_size: int = 1024
+    learning_rate: float = 1e-3
+    num_workers: int = 0
+
+
+class DataConfig(BaseModel):
+    """Data acquisition and dataset-related configuration.
+
+    Attributes
+    ----------
+    max_workers : int
+        Maximum number of worker threads used for concurrent downloads.
+    headers : dict
+        HTTP headers used for web requests.
+    players : dict
+        Mapping from remote player identifier to human-readable player name.
+    dataset_col_order : list
+        Preferred column ordering for the produced dataset DataFrame.
+    """
+
+    max_workers: int = 10
+    headers: dict = Field(
+        default_factory=lambda: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Referer": "https://www.google.com/",
+        }
+    )
+    players: dict = Field(
         default_factory=lambda: {
             "10240": "Alekhine",
             "12112": "Andersson",
@@ -52,16 +161,7 @@ class ProjectConfig:
             "14220": "Timman",
         }
     )
-
-    player_reference: List[str] = field(
-        default_factory=lambda: ["Korchnoi", "Ivanchuk", "Anand", "Karpov"]
-    )
-
-    maia_col_order: List[str] = field(
-        default_factory=lambda: ["fen", "move", "active_elo", "opponent_elo"]
-    )
-
-    dataset_col_order: List[str] = field(
+    dataset_col_order: list = Field(
         default_factory=lambda: [
             "game_id",
             "round",
@@ -74,166 +174,48 @@ class ProjectConfig:
         ]
     )
 
-    def create_directories(self):
-        """Generates foundational directories if they are currently absent."""
-        os.makedirs(self.data_folder, exist_ok=True)
-        os.makedirs(self.model_folder, exist_ok=True)
-        os.makedirs(self.result_folder, exist_ok=True)
 
-    # ==========================================
-    # MODEL ARTIFACT PATHS
-    # ==========================================
-    @property
-    def stockfish_model_path(self) -> str:
-        return os.path.join(self.model_folder, "stockfish")
+class Config(BaseModel):
+    """Top-level application configuration model.
 
-    @property
-    def champions_embeddings_path(self) -> str:
-        return os.path.join(self.model_folder, "champions_style_embeddings.pth")
+    Instances of this class aggregate `PathsConfig`, `DataConfig`,
+    `AutoencoderConfig` and `UMAPConfig`. The class method `from_yaml` permits
+    loading overrides from a YAML file; when invoked it also ensures the
+    configured filesystem layout exists on disk.
+    """
 
-    @property
-    def mcts_optimization_db_path(self) -> str:
-        return os.path.join(self.data_folder, "mcts_optimization.db")
+    paths: PathsConfig = Field(default_factory=PathsConfig)
+    data: DataConfig = Field(default_factory=DataConfig)
+    autoencoder: AutoencoderConfig = Field(default_factory=AutoencoderConfig)
+    umap: UMAPConfig = Field(default_factory=UMAPConfig)
 
-    @property
-    def pca_model_path(self) -> str:
-        return os.path.join(self.model_folder, "pca_model.pkl")
+    @classmethod
+    def from_yaml(cls, yaml_path: str):
+        """Instantiate a `Config` optionally overriding defaults with a YAML file.
 
-    @property
-    def autoencoder_model_path(self) -> str:
-        return os.path.join(self.model_folder, "autoencoder_model.pth")
+        If `yaml_path` does not exist an instance with default values is returned.
+        When a YAML file is present it is parsed and used to construct the Pydantic
+        model. After instantiation the required directories referenced by the
+        `PathsConfig` are created on disk to ensure downstream code can write
+        artifacts reliably.
 
-    @property
-    def umap_model_path(self) -> str:
-        return os.path.join(self.model_folder, "umap_model.pkl")
+        Parameters
+        ----------
+        yaml_path : str
+            Path to a YAML file containing configuration overrides.
 
-    @property
-    def umap_state_model_path(self) -> str:
-        return os.path.join(self.model_folder, "umap_state_model.pkl")
+        Returns
+        -------
+        Config
+            A fully-initialized configuration instance.
+        """
+        path = Path(yaml_path)
+        if not path.exists():
+            return cls()
 
-    # ==========================================
-    # AGGREGATE DATASETS
-    # ==========================================
-    @property
-    def dataset_path(self) -> str:
-        return os.path.join(self.data_folder, "chess_positions.parquet")
+        with open(path, "r", encoding="utf-8") as f:
+            yaml_dict = yaml.safe_load(f) or {}
 
-    @property
-    def train_set_path(self) -> str:
-        return os.path.join(self.data_folder, "train_set.parquet")
-
-    @property
-    def test_set_path(self) -> str:
-        return os.path.join(self.data_folder, "test_set.parquet")
-
-    @property
-    def generated_set_path(self) -> str:
-        return os.path.join(self.data_folder, "generated_set.parquet")
-
-    @property
-    def opening_stats_path(self) -> str:
-        return os.path.join(self.data_folder, "opening_stats.parquet")
-
-    # ==========================================
-    # TRAINING PIPELINE (MODEL FITTING)
-    # ==========================================
-    @property
-    def train_vectors_path(self) -> str:
-        return os.path.join(self.data_folder, "train_vectors.npy")
-
-    @property
-    def train_umap_vectors_path(self) -> str:
-        return os.path.join(self.data_folder, "train_umap_vectors.npy")
-
-    @property
-    def train_maia_embeddings_path(self) -> str:
-        return os.path.join(self.data_folder, "train_maia_style_embeddings.npy")
-
-    @property
-    def train_umap_result_path(self) -> str:
-        return os.path.join(self.data_folder, "train_umap_result.parquet")
-
-    @property
-    def train_umap_state_result_path(self) -> str:
-        return os.path.join(self.data_folder, "train_umap_state_result.parquet")
-
-    # ==========================================
-    # INFERENCE PIPELINE (TEST EVALUATION)
-    # ==========================================
-    @property
-    def test_vectors_path(self) -> str:
-        return os.path.join(self.data_folder, "test_vectors.npy")
-
-    @property
-    def test_umap_vectors_path(self) -> str:
-        return os.path.join(self.data_folder, "test_umap_vectors.npy")
-
-    @property
-    def test_maia_embeddings_path(self) -> str:
-        return os.path.join(self.data_folder, "test_maia_style_embeddings.npy")
-
-    @property
-    def test_umap_result_path(self) -> str:
-        return os.path.join(self.data_folder, "test_umap_result.parquet")
-
-    @property
-    def test_umap_state_result_path(self) -> str:
-        return os.path.join(self.data_folder, "test_umap_state_result.parquet")
-
-    # ==========================================
-    # GENERATION PIPELINE (STYLE COMPARISON)
-    # ==========================================
-    @property
-    def generated_vectors_path(self) -> str:
-        return os.path.join(self.data_folder, "generated_vectors.npy")
-
-    @property
-    def generated_umap_vectors_path(self) -> str:
-        return os.path.join(self.data_folder, "generated_umap_vectors.npy")
-
-    @property
-    def generated_maia_embeddings_path(self) -> str:
-        return os.path.join(self.data_folder, "generated_maia_style_embeddings.npy")
-
-    @property
-    def generated_umap_result_path(self) -> str:
-        return os.path.join(self.data_folder, "generated_umap_result.parquet")
-
-    @property
-    def generated_umap_state_result_path(self) -> str:
-        return os.path.join(self.data_folder, "generated_umap_state_result.parquet")
-
-    # ==========================================
-    # EVALUATION METRICS & DISTANCE MATRICES
-    # ==========================================
-    @property
-    def maia_result_path(self) -> str:
-        return os.path.join(self.data_folder, "maia_result.parquet")
-
-    @property
-    def test_evaluation_result_path(self) -> str:
-        return os.path.join(self.result_folder, "test_set_evaluation.parquet")
-
-    @property
-    def mcts_params_result_path(self) -> str:
-        return os.path.join(self.result_folder, "players_mcts_params.parquet")
-
-    @property
-    def distances_train_result_path(self) -> str:
-        return os.path.join(self.data_folder, "player_distances_train.parquet")
-
-    @property
-    def distances_test_result_path(self) -> str:
-        return os.path.join(self.data_folder, "player_distances_test.parquet")
-
-    @property
-    def cross_distances_result_path(self) -> str:
-        return os.path.join(self.data_folder, "cross_distances_test_vs_gen.parquet")
-
-    @property
-    def cross_distances_train_test_result_path(self) -> str:
-        return os.path.join(self.data_folder, "cross_distances_train_test.parquet")
-
-
-# Default instance instantiation to maintain backward compatibility during the transitional phase.
-default_config = ProjectConfig()
+        config_instance = cls(**yaml_dict)
+        config_instance.paths.make_directories()
+        return config_instance

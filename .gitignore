@@ -187,6 +187,5 @@ pyrightconfig.json
 Notes/
 stockfish
 *.pth
-src/test.py
 *.db
 *.db-journal
