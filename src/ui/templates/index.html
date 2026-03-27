@@ -33,7 +33,7 @@
                 margin-top: 0;
                 font-size: 2em;
                 color: var(--text-light);
-                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+                text-shadow: 0 2px 4px rgba(0,0,0,0.3);
             }
 
             .app-container {
@@ -62,11 +62,37 @@
                 max-width: 450px;
             }
 
+            .board-container {
+                position: relative;
+            }
+
             #board {
                 width: 450px;
                 border: 8px solid var(--bg-panel);
                 border-radius: 8px;
                 box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            }
+
+            #promotion-modal {
+                display: none;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--bg-panel);
+                padding: 20px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+                z-index: 1000;
+                text-align: center;
+                border: 2px solid var(--accent);
+                width: 250px;
+            }
+
+            .promo-btn {
+                padding: 10px !important;
+                font-size: 1.5em !important;
+                margin-bottom: 0 !important;
             }
 
             .panel {
@@ -98,8 +124,7 @@
                 flex: 1;
             }
 
-            input,
-            select {
+            input, select {
                 width: 100%;
                 padding: 10px;
                 border-radius: 6px;
@@ -111,8 +136,7 @@
                 outline: none;
             }
 
-            input:focus,
-            select:focus {
+            input:focus, select:focus {
                 border-color: var(--accent);
             }
 
@@ -126,9 +150,7 @@
                 cursor: pointer;
                 font-weight: bold;
                 font-size: 1.05em;
-                transition:
-                    background 0.2s,
-                    transform 0.1s;
+                transition: background 0.2s, transform 0.1s;
                 margin-bottom: 10px;
             }
 
@@ -158,7 +180,7 @@
                 text-align: center;
                 font-weight: bold;
                 padding: 12px;
-                background: rgba(0, 0, 0, 0.2);
+                background: rgba(0,0,0,0.2);
                 border-radius: 6px;
                 margin-bottom: 15px;
             }
@@ -183,10 +205,23 @@
 
         <div class="app-container">
             <div class="left-column">
-                <div id="board"></div>
+                <div class="board-container">
+                    <div id="board"></div>
+
+                    <div id="promotion-modal">
+                        <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--text-light);">Choose Promotion</h4>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button class="promo-btn" onclick="choosePromotion('q')">♛</button>
+                            <button class="promo-btn" onclick="choosePromotion('n')">♞</button>
+                            <button class="promo-btn" onclick="choosePromotion('r')">♜</button>
+                            <button class="promo-btn" onclick="choosePromotion('b')">♝</button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="right-column">
+
                 <div class="panel">
                     <div class="control-group">
                         <label>FEN Position:</label>
@@ -204,9 +239,7 @@
                                 </optgroup>
                                 <optgroup label="Champions">
                                     {% for player in players %}
-                                    <option value="{{ player }}">
-                                        {{ player }}
-                                    </option>
+                                    <option value="{{ player }}">{{ player }}</option>
                                     {% endfor %}
                                 </optgroup>
                             </select>
@@ -221,7 +254,7 @@
                                 </optgroup>
                                 <optgroup label="Champions">
                                     {% for player in players %}
-                                    <option value="{{ player }}">
+                                    <option value="{{ player }}" {{ 'selected' if loop.index == 2 else '' }}>
                                         {{ player }}
                                     </option>
                                     {% endfor %}
@@ -241,24 +274,16 @@
                     <button onclick="startGame()">START GAME</button>
 
                     <div class="button-group">
-                        <button
-                            class="btn-secondary"
-                            onclick="alert(game.pgn())"
-                        >
-                            Show PGN
-                        </button>
-                        <button class="btn-secondary" onclick="download_pgn()">
-                            Download PGN
-                        </button>
+                        <button class="btn-secondary" onclick="alert(game.pgn())">Show PGN</button>
+                        <button class="btn-secondary" onclick="download_pgn()">Download PGN</button>
                     </div>
                 </div>
 
                 <div class="panel">
                     <div id="status-msg">Waiting to start...</div>
-                    <div id="move-probs">
-                        AI statistics will appear here as the game progresses.
-                    </div>
+                    <div id="move-probs">AI statistics will appear here as the game progresses.</div>
                 </div>
+
             </div>
         </div>
 
@@ -269,6 +294,7 @@
         <script>
             var board = null;
             var game = new Chess();
+            let pendingPromotion = null;
 
             function download_pgn() {
                 const pgn = game.pgn();
@@ -290,39 +316,63 @@
 
                 if (game.in_checkmate()) {
                     status = "GAME OVER: " + moveColor + " is checkmated!";
-                    document.getElementById("status-msg").style.color =
-                        "#ff4757";
+                    document.getElementById("status-msg").style.color = "#ff4757";
                 } else if (game.in_draw()) {
                     status = "GAME OVER: Draw";
-                    document.getElementById("status-msg").style.color =
-                        "#747d8c";
+                    document.getElementById("status-msg").style.color = "#747d8c";
                 } else {
-                    status =
-                        (game.turn() === "w" ? "White" : "Black") + " to move";
+                    status = (game.turn() === "w" ? "White" : "Black") + " to move";
                     if (game.in_check()) {
                         status += " (CHECK)";
-                        document.getElementById("status-msg").style.color =
-                            "#ffa502";
+                        document.getElementById("status-msg").style.color = "#ffa502";
                     } else {
-                        document.getElementById("status-msg").style.color =
-                            "#f5f6fa";
+                        document.getElementById("status-msg").style.color = "#f5f6fa";
                     }
                 }
                 document.getElementById("status-msg").innerHTML = status;
             }
 
             function onDrop(source, target) {
-                var move = game.move({
-                    from: source,
-                    to: target,
-                    promotion: "q",
-                });
-                if (move === null) return "snapback";
+                const moves = game.moves({ verbose: true });
+                const move = moves.find(m => m.from === source && m.to === target);
 
+                if (move === undefined) return "snapback";
+
+                if (move.flags.includes('p') || move.promotion) {
+                    pendingPromotion = { source: source, target: target };
+                    document.getElementById("promotion-modal").style.display = "block";
+                    return "snapback";
+                }
+
+                game.move({ from: source, to: target });
                 updateStatus();
                 if (!game.game_over()) {
                     window.setTimeout(makeAIMove, 250);
                 }
+            }
+
+            function choosePromotion(piece) {
+                document.getElementById("promotion-modal").style.display = "none";
+
+                if (pendingPromotion) {
+                    game.move({
+                        from: pendingPromotion.source,
+                        to: pendingPromotion.target,
+                        promotion: piece
+                    });
+
+                    board.position(game.fen());
+                    updateStatus();
+                    pendingPromotion = null;
+
+                    if (!game.game_over()) {
+                        window.setTimeout(makeAIMove, 250);
+                    }
+                }
+            }
+
+            function onSnapEnd() {
+                board.position(game.fen());
             }
 
             async function makeAIMove() {
@@ -339,12 +389,8 @@
                         body: JSON.stringify({
                             fen: game.fen(),
                             pgn: game.pgn(),
-                            active_elo: isWhite
-                                ? $("#eloW").val()
-                                : $("#eloB").val(),
-                            opponent_elo: isWhite
-                                ? $("#eloB").val()
-                                : $("#eloW").val(),
+                            active_elo: isWhite ? $("#eloW").val() : $("#eloB").val(),
+                            opponent_elo: isWhite ? $("#eloB").val() : $("#eloW").val(),
                         }),
                     });
 
@@ -356,11 +402,8 @@
                     }
 
                     if (data.move_dict) {
-                        let probsHtml =
-                            "<strong>Top Moves Analysis:</strong><br>";
-                        const sortedProbs = Object.entries(data.move_dict).sort(
-                            (a, b) => b[1] - a[1],
-                        );
+                        let probsHtml = "<strong>Top Moves Analysis:</strong><br>";
+                        const sortedProbs = Object.entries(data.move_dict).sort((a, b) => b[1] - a[1]);
                         for (const [mv, pr] of sortedProbs) {
                             probsHtml += `${mv}: ${(pr * 100).toFixed(2)}% | `;
                         }
@@ -372,10 +415,7 @@
                         movePlayed = game.move({
                             from: data.move.substring(0, 2),
                             to: data.move.substring(2, 4),
-                            promotion:
-                                data.move.length > 4
-                                    ? data.move.substring(4)
-                                    : "q",
+                            promotion: data.move.length > 4 ? data.move.substring(4) : "q"
                         });
                     }
 
@@ -399,18 +439,15 @@
                     draggable: true,
                     position: game.fen(),
                     onDrop: onDrop,
-                    pieceTheme:
-                        "https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png",
+                    onSnapEnd: onSnapEnd,
+                    pieceTheme: "https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png",
                 };
                 board = Chessboard("board", config);
 
                 updateStatus();
                 if ($("#userColor").val() === "b" && game.turn() === "w") {
                     makeAIMove();
-                } else if (
-                    $("#userColor").val() === "w" &&
-                    game.turn() === "b"
-                ) {
+                } else if ($("#userColor").val() === "w" && game.turn() === "b") {
                     makeAIMove();
                 }
             }
