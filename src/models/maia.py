@@ -106,7 +106,7 @@ class MaiaEngine:
         self,
         fen,
         pgn,
-        num_simulations=50,
+        num_simulations=1000,
         c_puct=1.5,
         threshold=0.01,
         active_elo: int | str = 2500,
@@ -212,7 +212,7 @@ class MaiaEngine:
 
         self.model.eval()
         with torch.no_grad():
-            logits_maia, value_maia, _ = self.model(board_tensor, s_self, s_oppo)
+            logits_maia, _, value_maia = self.model(board_tensor, s_self, s_oppo)
             board_value = float(value_maia[0].cpu().item())
 
             all_moves_dict, _, all_moves_dict_reversed = self.prepare

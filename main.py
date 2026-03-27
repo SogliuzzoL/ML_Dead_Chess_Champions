@@ -23,6 +23,8 @@ def main():
             "evaluate",
             "train_players",
             "evaluate_players",
+            "tournament",
+            "ui",
         ],
         help="Pipeline stage to execute",
     )
@@ -40,6 +42,14 @@ def main():
         default="umap",
         choices=["umap", "vae", "contrastif"],
         help="Dimensionality-reduction method to evaluate (default: umap)",
+    )
+
+    parser.add_argument(
+        "--tournament",
+        type=str,
+        default="single_elimination",
+        choices=["single_elimination", "round_robin", "swiss_system"],
+        help="Tournament format to simulate (default: single_elimination)",
     )
 
     args = parser.parse_args()
@@ -103,6 +113,51 @@ def main():
 
         logger.info("Commencing player evaluation and comparison routine...")
         evaluate_players(config, force_train=False)
+
+    if args.step == "tournament":
+        import numpy as np
+
+        from src.evaluation.tournament import RoundRobin, SingleElimination, SwissSystem
+        from src.models.maia import MaiaEngine
+
+        logger.info("Commencing tournament simulation among champion players...")
+        engine = MaiaEngine(config)
+
+        champions = list(config.data.players.values())
+
+        _, elo_dict, _ = engine.prepare
+        standard_elos = list(elo_dict.keys())
+
+        all_participants = champions + standard_elos
+
+        tournament = None
+
+        if args.tournament == "single_elimination":
+            tournament = SingleElimination(
+                engine, config, players=all_participants, num_games=2
+            )
+        elif args.tournament == "round_robin":
+            tournament = RoundRobin(
+                engine, config, players=all_participants, num_games=2
+            )
+        elif args.tournament == "swiss_system":
+            tournament = SwissSystem(
+                engine,
+                config,
+                players=all_participants,
+                num_games=2,
+                num_rounds=int(np.log2(len(all_participants))) + 1,
+            )
+        else:
+            raise ValueError(f"Unknown tournament format: {args.tournament}")
+
+        tournament.run_tournament()
+
+    if args.step == "ui":
+        from src.ui.app import run_ui
+
+        logger.info("Launching the web interface...")
+        run_ui(config)
 
 
 if __name__ == "__main__":
