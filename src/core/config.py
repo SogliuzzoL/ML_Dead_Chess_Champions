@@ -57,13 +57,20 @@ class PathsConfig(BaseModel):
     test_umap_result_path: str = "data/processed/test_umap.parquet"
     umap_model_path: str = "models/saved/style_umap.pkl"
 
-    def make_directories(self):
+    champions_embeddings_path: str = "models/saved/champions_embeddings.pth"
+    player_accuracies_path: str = (
+        "results/evaluation/player_accuracies_comparison.parquet"
+    )
+
+    def make_directories(self) -> None:
         """Ensure all configured filesystem paths exist on disk.
 
         For each configured path, this helper creates parent directories as
         required. If a configured value represents a file (i.e., has a suffix),
         its parent directory is created; otherwise the path itself is treated
         as a directory and created.
+
+        This method is idempotent and safe to call multiple times.
         """
         for path_str in self.model_dump().values():
             path_obj = Path(path_str)
@@ -100,6 +107,28 @@ class PathsConfig(BaseModel):
     def get_cross_distances_path(self, method: str) -> str:
         """Return the canonical path for cross-split distances for `method`."""
         return f"{self.evaluation_dir}cross_distances_{method}.parquet"
+
+
+class PlayerTrainingConfig(BaseModel):
+    """Per-player training hyperparameters.
+
+    These settings may be used when performing player-specific training or
+    fine-tuning routines. Values provided here are intended as sensible
+    defaults and may be overridden via a YAML configuration file.
+
+    Attributes
+    ----------
+    epochs : int
+        Number of epochs to train for.
+    batch_size : int
+        Mini-batch size used during training.
+    learning_rate : float
+        Learning rate used by the optimizer.
+    """
+
+    epochs: int = 10
+    batch_size: int = 512
+    learning_rate: float = 1e-4
 
 
 class UMAPConfig(BaseModel):
@@ -188,26 +217,27 @@ class Config(BaseModel):
     data: DataConfig = Field(default_factory=DataConfig)
     autoencoder: AutoencoderConfig = Field(default_factory=AutoencoderConfig)
     umap: UMAPConfig = Field(default_factory=UMAPConfig)
+    player_training: PlayerTrainingConfig = Field(default_factory=PlayerTrainingConfig)
 
     @classmethod
-    def from_yaml(cls, yaml_path: str):
-        """Instantiate a `Config` optionally overriding defaults with a YAML file.
+    def from_yaml(cls, yaml_path: str) -> "Config":
+        """Instantiate a `Config`, optionally overriding defaults with a YAML file.
 
-        If `yaml_path` does not exist an instance with default values is returned.
-        When a YAML file is present it is parsed and used to construct the Pydantic
-        model. After instantiation the required directories referenced by the
-        `PathsConfig` are created on disk to ensure downstream code can write
-        artifacts reliably.
+        If `yaml_path` does not exist, an instance populated with default values
+        is returned. When a YAML file is present its keys are validated and used
+        to construct the Pydantic model. After construction this helper ensures
+        that filesystem locations required by `PathsConfig` exist by invoking
+        `paths.make_directories()`.
 
         Parameters
         ----------
         yaml_path : str
-            Path to a YAML file containing configuration overrides.
+            Filesystem path to a YAML configuration file.
 
         Returns
         -------
         Config
-            A fully-initialized configuration instance.
+            A validated and fully-initialized configuration instance.
         """
         path = Path(yaml_path)
         if not path.exists():
