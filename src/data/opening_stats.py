@@ -2,8 +2,7 @@
 
 This module parses PGN files for configured players, extracts the ECO code
 for each game and records the player's color when the game was played. The
-aggregated statistics are written to a Parquet file. Logging and docstrings
-are presented in formal academic English.
+aggregated statistics are written to a Parquet file.
 """
 
 from pathlib import Path

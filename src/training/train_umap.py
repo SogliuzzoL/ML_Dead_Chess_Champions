@@ -5,8 +5,6 @@ and applies the trained transformation to held-out data. Results (2D coordinates
 with associated player identifiers) and the serialized UMAP model are persisted
 to locations specified in the application configuration.
 
-All user-facing log messages and documentation are presented in formal,
-academic English to support reproducible data processing and analysis.
 """
 
 import numpy as np
@@ -48,7 +46,6 @@ def train_umap(config: Config) -> None:
     )
     result_umap = model_umap.fit_transform(vectors)
 
-    # Associate embedding coordinates with player names for downstream analysis
     df = pl.read_parquet(config.paths.train_set_path)
     result_df = pl.DataFrame(result_umap, schema=["UMAP1", "UMAP2"])
     result_df = result_df.with_columns(df["player_name"])

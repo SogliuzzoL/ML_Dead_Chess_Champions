@@ -3,8 +3,7 @@
 This module implements training and inference routines for a feed-forward
 autoencoder that compresses fixed-length position vectors. It exposes
 functions to train the model on the training vectors and to encode datasets
-(separately for train and test) into latent representations. Logging and
-documentation are written in formal academic English.
+(separately for train and test) into latent representations.
 """
 
 import numpy as np
@@ -42,7 +41,6 @@ def train_autoencoder(config: Config) -> Autoencoder:
     ensure a clear separation between training and evaluation data.
     """
 
-    # Load only the training vectors
     data = np.load(config.paths.train_vectors_path, mmap_mode="r")
     input_dim = data.shape[1]
 
@@ -124,7 +122,6 @@ def infer_autoencoder(config: Config):
     configuration.
     """
 
-    # Initialize the model to determine input dimensionality
     sample_data = np.load(config.paths.train_vectors_path, mmap_mode="r")
     input_dim = sample_data.shape[1]
 
@@ -136,7 +133,6 @@ def infer_autoencoder(config: Config):
 
     logger.info("Commencing inference on the training and test datasets...")
 
-    # Inference on the TRAIN set
     _infer_and_save(
         model,
         config.paths.train_vectors_path,
@@ -145,7 +141,6 @@ def infer_autoencoder(config: Config):
         "TRAIN",
     )
 
-    # Inference on the TEST set
     _infer_and_save(
         model,
         config.paths.test_vectors_path,

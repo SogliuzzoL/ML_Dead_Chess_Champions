@@ -3,9 +3,7 @@
 This module parses Portable Game Notation (PGN) files for players specified in the
 project configuration, extracts per-move examples (position FEN, UCI move, player
 color, move number, repetition flag and final result), and persists the full
-dataset and a train/test split to Parquet files. The implementation provides
-progress reporting and structured logging to facilitate reproducible data
-acquisition and post-hoc analysis.
+dataset and a train/test split to Parquet files.
 """
 
 from pathlib import Path
@@ -19,7 +17,6 @@ from sklearn.model_selection import train_test_split
 from src.core.config import Config
 from src.core.utils import getLogger
 
-# Initialize centralized logger
 logger = getLogger()
 
 
@@ -92,6 +89,8 @@ def build_dataset(config: Config) -> None:
 
             data_count[player_name] = data_count.get(player_name, 0) + 1
 
+            # Exclude non-standard chess variants (e.g., Chess960 or puzzles)
+            # which are indicated by the presence of a custom FEN header.
             fen = header.get("FEN", None)
             if fen is not None:
                 logger.warning(
@@ -100,6 +99,9 @@ def build_dataset(config: Config) -> None:
                 continue
 
             board = game.board()
+
+            # Reconstruct the board state at each step to extract valid (FEN, move)
+            # pairs strictly from the perspective of the player of interest.
             for move in game.mainline_moves():
                 if board.turn == player_color:
                     color = "white" if board.turn == chess.WHITE else "black"

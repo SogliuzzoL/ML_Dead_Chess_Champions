@@ -3,8 +3,6 @@
 This module implements a `MaiaEngine` class which initializes a pre-trained Maia
 network, augments it with a per-player style embedding, and exposes convenience
 methods for single-move prediction, MCTS-based search, and batch evaluation.
-All user-facing messages and internal documentation are presented in formal
-academic English to facilitate reproducible experimentation.
 """
 
 import io
@@ -145,7 +143,6 @@ class MaiaEngine:
             the root and `result` is a dict mapping candidate moves to model
             probabilities.
         """
-        # Stockfish is not used in this context; search relies exclusively on Maia predictions.
         board = self.get_board_from_fen(fen, pgn)
         mcts = MCTS(self.predict_move)
         best_move, result = mcts.run(
@@ -215,10 +212,7 @@ class MaiaEngine:
 
         self.model.eval()
         with torch.no_grad():
-            # Extract logits (policy) and the Maia value head
             logits_maia, value_maia, _ = self.model(board_tensor, s_self, s_oppo)
-
-            # Convert the Maia value tensor to a Python float
             board_value = float(value_maia[0].cpu().item())
 
             all_moves_dict, _, all_moves_dict_reversed = self.prepare
@@ -237,7 +231,6 @@ class MaiaEngine:
         sorted_moves = sorted(move_probs.items(), key=lambda x: x[1], reverse=True)
         best_move = sorted_moves[0][0]
 
-        # Return three items: the best move, the move probabilities, and the evaluation value
         return best_move, dict(sorted_moves), board_value
 
     def evaluate_batch(self, dataloader):
@@ -261,10 +254,7 @@ class MaiaEngine:
                 labels = labels.to(self.device, non_blocking=True)
                 legal_masks = legal_masks.to(self.device, non_blocking=True)
 
-                # Extract logits; the value head is not required for move accuracy evaluation
                 logits, _, _ = self.model(boards, active_ids, opponent_ids)
-
-                # Mask illegal moves to prevent illegal move predictions
                 logits = logits.masked_fill(~legal_masks, -float("inf"))
                 predictions = logits.argmax(dim=-1)
 

@@ -2,8 +2,7 @@
 
 This module provides a lightweight subclass of UMAP that exposes safe persistence
 methods, alongside a function to transform a (FEN, move) pair into a flat tensor
-suitable for downstream representation learning. All user-visible documentation
-is phrased in academic English.
+suitable for downstream representation learning.
 """
 
 import pickle

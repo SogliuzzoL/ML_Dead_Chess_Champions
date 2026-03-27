@@ -4,12 +4,6 @@ This module provides functions to retrieve HTML pages and download Portable Game
 (PGN) files for a set of players defined in the project's configuration. The implementation
 employs retry logic with exponential backoff, parallel downloads via a thread pool, and
 progress reporting to ensure robust and observable data acquisition.
-
-Primary functions
-- fetch_url: Retrieve and parse an URL to an lxml HTML element.
-- download_pgn: Download a PGN file for a given game ID and save it to disk.
-- fetch_chessgames: Iterate over a player's game listing pages and schedule PGN downloads.
-- fetch_all_games: Orchestrate the retrieval of games for all configured players.
 """
 
 import random
@@ -104,7 +98,6 @@ def download_pgn(
     with open(file_path, "wb") as f:
         f.write(response.content)
 
-    # Small randomized sleep to reduce likelihood of being rate-limited by the server.
     time.sleep(random.uniform(2, 4))
 
 

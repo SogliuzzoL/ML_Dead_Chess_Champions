@@ -4,9 +4,6 @@ This module centralizes project-wide configuration using Pydantic models. It
 defines structured containers for filesystem paths, data acquisition settings,
 and modelling hyperparameters. Helper methods are provided to create the
 required directory layout and to load configuration overrides from a YAML file.
-
-All user-visible documentation is presented in formal academic English to
-support reproducible and well-documented data processing workflows.
 """
 
 from pathlib import Path

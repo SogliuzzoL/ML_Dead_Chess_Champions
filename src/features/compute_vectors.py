@@ -2,9 +2,7 @@
 
 This module provides utilities to extract fixed-size vector representations for
 (FEN, move) pairs stored in Parquet datasets. Each pair is converted via
-`position_to_vector`. The module writes NumPy arrays for train/test sets and
-emits formal academic-style logging to facilitate reproducible data
-acquisition and downstream analysis.
+`position_to_vector`. The module writes NumPy arrays for train/test sets.
 """
 
 from pathlib import Path
@@ -25,8 +23,7 @@ def _extract_and_save(input_path: Path, output_path: Path, desc: str) -> None:
 
     Loads a Parquet dataset from `input_path`, converts each (FEN, move) pair to a
     vector using `position_to_vector`, and writes the resulting contiguous NumPy
-    array to `output_path`. Diagnostic messages are provided in formal academic
-    English.
+    array to `output_path`.
 
     Parameters
     ----------

@@ -6,8 +6,6 @@ embeddings against a baseline Maia model. The principal entry point,
 `evaluate_players(config, force_train=False)`, optionally triggers training of
 per-player embeddings, evaluates the customized model on the test split, and
 computes baseline accuracies using the unmodified Maia backbone.
-
-All log messages and documentation are expressed in formal academic English.
 """
 
 from typing import Dict, Tuple
@@ -110,7 +108,6 @@ def evaluate_players(config: Config, force_train: bool = False) -> None:
 
     idx_to_player = {idx: player for player, idx in engine.player_to_idx.items()}
 
-    # Initialize per-player metrics using the configured player names
     metrics = {
         player: {"n_positions": 0, "custom_correct": 0, "baseline_accuracy": 0.0}
         for player in config.data.players.values()
@@ -123,7 +120,6 @@ def evaluate_players(config: Config, force_train: bool = False) -> None:
             if correct_preds_custom[i]:
                 metrics[player_name]["custom_correct"] += 1
 
-    # Prepare a DataFrame to compute baseline accuracies via Maia's batch inference
     df_full = pl.read_parquet(config.paths.test_set_path).with_columns(
         active_elo=pl.lit(2500), opponent_elo=pl.lit(2500)
     )
@@ -146,7 +142,6 @@ def evaluate_players(config: Config, force_train: bool = False) -> None:
         )
         metrics[player_name]["baseline_accuracy"] = baseline_acc
 
-    # Aggregate results and compute per-player absolute improvement
     results = []
     for p, stats in metrics.items():
         if stats["n_positions"] > 0:
@@ -169,6 +164,5 @@ def evaluate_players(config: Config, force_train: bool = False) -> None:
     df_results.write_parquet(output_path)
     logger.info(f"Final per-player accuracy comparison saved to {output_path}")
 
-    # Log a concise textual summary for quick inspection
     logger.info("Summary of per-player predictive improvement:")
     logger.info(str(df_results))

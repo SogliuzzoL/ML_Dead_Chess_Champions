@@ -2,9 +2,7 @@
 
 This module provides routines to compute pairwise Jensen-Shannon divergences
 between empirical 2D embedding distributions and to assess the stability of
-embedding methods by comparing training and test splits. User-facing messages
-and documentation are expressed in formal academic English to support
-reproducible analysis.
+embedding methods by comparing training and test splits.
 """
 
 from itertools import combinations
@@ -55,10 +53,9 @@ def compute_distances(config: Config, method: str, is_test: bool = False) -> Non
     cols = _get_dim_columns(df)
     distance_data = []
 
-    # En Polars, unique() renvoie une Series, on doit la convertir en liste pour l'itérateur
     player_names = df["player_name"].unique().to_list()
 
-    # Define global dynamic bounds for the 2D histograms
+    # Determine global boundaries to ensure a consistent grid for 2D histograms
     global_bounds = [
         [df[cols[0]].min(), df[cols[0]].max()],
         [df[cols[1]].min(), df[cols[1]].max()],
@@ -69,7 +66,6 @@ def compute_distances(config: Config, method: str, is_test: bool = False) -> Non
     )
 
     for p1, p2 in progress_bar:
-        # Syntaxe Polars : filter() puis select() puis conversion en numpy
         emb1 = df.filter(pl.col("player_name") == p1).select(cols).to_numpy()
         emb2 = df.filter(pl.col("player_name") == p2).select(cols).to_numpy()
 
@@ -116,7 +112,6 @@ def compute_train_test_distances(config: Config, method: str) -> None:
     )
 
     for player in progress_bar:
-        # Syntaxe Polars native
         emb_train = (
             df_train.filter(pl.col("player_name") == player).select(cols).to_numpy()
         )

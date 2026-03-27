@@ -47,26 +47,19 @@ class PlayerStyleEmbedding(nn.Embedding):
             num_embeddings=total_embeddings, embedding_dim=elo_embeddings.embedding_dim
         )
 
-        # Maintain compatibility with modules that introspect `weight`.
-        # The module composes separate embedding tables; the `weight` attribute
-        # is set to an empty parameter to avoid accidental reuse of the parent
-        # `Embedding` storage.
+        # Prevent accidental reuse of the parent `Embedding` storage while maintaining
+        # compatibility with modules that introspect `weight`.
         self.weight = nn.Parameter(torch.empty(0))
 
-        # Reference to Maia's Elo embeddings; keep them frozen.
         self.elo_embeddings: nn.Embedding = elo_embeddings
         self.elo_embeddings.requires_grad_(False)
 
-        # Index of the last Maia Elo embedding (used to distinguish indices).
         self.max_maia_idx: int = elo_embeddings.num_embeddings - 1
         self.dim: int = elo_embeddings.embedding_dim
 
-        # Learnable embeddings for project-specific players.
         self.players_embeddings = nn.Embedding(n_players, self.dim)
 
-        # Initialize per-player embeddings from Maia's most-representative vector
-        # (here: the embedding at index `max_maia_idx`) to provide a sensible
-        # starting point for fine-tuning.
+        # Initialize project embeddings from the most representative Elo category
         with torch.no_grad():
             best_weights: Any = (
                 self.elo_embeddings.weight[self.max_maia_idx].detach().clone()
@@ -89,17 +82,13 @@ class PlayerStyleEmbedding(nn.Embedding):
             A tensor of shape (*input.shape, embedding_dim) containing the
             corresponding embedding vectors.
         """
-        # Boolean mask identifying indices that correspond to project players.
         is_player = input > self.max_maia_idx
 
-        # Allocate output tensor with the correct shape and device.
         out = torch.zeros(*input.shape, self.dim, device=input.device)
 
-        # Populate entries that refer to Maia's Elo categories (non-player indices).
         if (~is_player).any():
             out[~is_player] = self.elo_embeddings(input[~is_player])
 
-        # Populate entries that correspond to project-specific players.
         if is_player.any():
             shifted_indices = input[is_player] - (self.max_maia_idx + 1)
             out[is_player] = self.players_embeddings(shifted_indices)

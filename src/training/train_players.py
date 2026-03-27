@@ -9,8 +9,6 @@ Elo embeddings as fixed (non-trainable) parameters.
 The principal entry point is `run_training(config)`, which constructs a
 `PlayerDataset`, configures the Maia model for per-player embedding training,
 and persists the trained embeddings to disk.
-
-All logging and documentation are expressed in formal academic English.
 """
 
 import chess
@@ -62,7 +60,6 @@ class PlayerDataset(Dataset):
         self.elo_dict = create_elo_dict()
         self.max_maia_idx = max(self.elo_dict.values())
 
-        # Map human-readable player names to indices that follow Maia's indices.
         self.player_to_idx = {
             player: idx + self.max_maia_idx + 1
             for idx, player in enumerate(player_dict.values())
@@ -88,7 +85,6 @@ class PlayerDataset(Dataset):
         if active_player in self.player_to_idx:
             active_player_idx = self.player_to_idx[active_player]
         else:
-            # Fall back to mapping a canonical Elo value to Maia's categories.
             active_player_idx = map_to_category(2500, self.elo_dict)
 
         opponent_idx = map_to_category(opponent_elo, self.elo_dict)
@@ -128,7 +124,6 @@ def run_training(config: Config) -> None:
     )
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4)
 
-    # Freeze entire Maia model except the per-player embedding matrix.
     maia_model.requires_grad_(False)
     maia_model.elo_embedding.players_embeddings.weight.requires_grad = True
 
