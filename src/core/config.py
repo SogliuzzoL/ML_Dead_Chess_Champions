@@ -59,6 +59,9 @@ class PathsConfig(BaseModel):
         "results/evaluation/player_accuracies_comparison.parquet"
     )
 
+    moves_distribution_graph_path: str = "results/graphics/moves_distribution.pdf"
+    jsd_heatmap_path: str = "results/graphics/jsd_heatmap.pdf"
+
     def make_directories(self) -> None:
         """Ensure all configured filesystem paths exist on disk.
 
@@ -104,6 +107,10 @@ class PathsConfig(BaseModel):
     def get_cross_distances_path(self, method: str) -> str:
         """Return the canonical path for cross-split distances for `method`."""
         return f"{self.evaluation_dir}cross_distances_{method}.parquet"
+
+
+class JSDConfig(BaseModel):
+    method: str = "umap"
 
 
 class PlayerTrainingConfig(BaseModel):
@@ -215,6 +222,7 @@ class Config(BaseModel):
     autoencoder: AutoencoderConfig = Field(default_factory=AutoencoderConfig)
     umap: UMAPConfig = Field(default_factory=UMAPConfig)
     player_training: PlayerTrainingConfig = Field(default_factory=PlayerTrainingConfig)
+    jsd: JSDConfig = Field(default_factory=JSDConfig)
 
     @classmethod
     def from_yaml(cls, yaml_path: str) -> "Config":

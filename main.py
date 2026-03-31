@@ -25,6 +25,7 @@ def main():
             "evaluate_players",
             "tournament",
             "ui",
+            "graphics",
         ],
         help="Pipeline stage to execute",
     )
@@ -34,14 +35,6 @@ def main():
         type=str,
         default="config/default.yml",
         help="Filesystem path to the YAML configuration file (default: config/default.yml)",
-    )
-
-    parser.add_argument(
-        "--method",
-        type=str,
-        default="umap",
-        choices=["umap", "vae", "contrastif"],
-        help="Dimensionality-reduction method to evaluate (default: umap)",
     )
 
     parser.add_argument(
@@ -98,9 +91,9 @@ def main():
         )
 
         logger.info(f"Commencing evaluation for method: {args.method.upper()}...")
-        compute_distances(config, method=args.method, is_test=False)
-        compute_distances(config, method=args.method, is_test=True)
-        compute_train_test_distances(config, method=args.method)
+        compute_distances(config, method=config.jsd.method, is_test=False)
+        compute_distances(config, method=config.jsd.method, is_test=True)
+        compute_train_test_distances(config, method=config.jsd.method)
 
     if args.step == "train_players":
         from src.training.train_players import run_training
@@ -158,6 +151,12 @@ def main():
 
         logger.info("Launching the web interface...")
         run_ui(config)
+
+    if args.step == "graphics":
+        from src.visualization.graphics import generate_all_graphics
+
+        logger.info("Generating all visualizations and graphics...")
+        generate_all_graphics(config)
 
 
 if __name__ == "__main__":

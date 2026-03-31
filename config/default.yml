@@ -3,9 +3,26 @@ paths:
   raw_data: "data/raw/"
   model: "models/"
   result: "results/"
+  evaluation_dir: "results/evaluation/"
+
   dataset_path: "data/processed/dataset.parquet"
   train_set_path: "data/processed/train.parquet"
   test_set_path: "data/processed/test.parquet"
+  opening_stats_path: "data/processed/opening_stats.parquet"
+
+  train_vectors_path: "data/processed/train_vectors.npy"
+  test_vectors_path: "data/processed/test_vectors.npy"
+  autoencoder_model_path: "models/saved/autoencoder.pth"
+  train_encoded_vectors_path: "data/processed/train_encoded_vectors.npy"
+  test_encoded_vectors_path: "data/processed/test_encoded_vectors.npy"
+  train_umap_result_path: "data/processed/train_umap.parquet"
+  test_umap_result_path: "data/processed/test_umap.parquet"
+  umap_model_path: "models/saved/style_umap.pkl"
+  champions_embeddings_path: "models/saved/champions_embeddings.pth"
+
+  player_accuracies_path: "results/evaluation/player_accuracies_comparison.parquet"
+  moves_distribution_graph_path: "results/graphics/moves_distribution.pdf"
+  jsd_heatmap_path: "results/graphics/jsd_heatmap.pdf"
 
 data:
   max_workers: 10
@@ -41,3 +58,21 @@ data:
     - "move"
     - "repetition"
     - "result"
+
+autoencoder:
+  latent_dim: 128
+  epochs: 10
+  batch_size: 1024
+  learning_rate: 0.001
+  num_workers: 0
+
+umap:
+  n_components: 2
+
+player_training:
+  epochs: 10
+  batch_size: 512
+  learning_rate: 0.0001
+
+jsd:
+  method: "umap"
