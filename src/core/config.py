@@ -166,7 +166,7 @@ class DataConfig(BaseModel):
         Preferred column ordering for the produced dataset DataFrame.
     """
 
-    max_workers: int = 10
+    max_workers: int = 5
     headers: dict = Field(
         default_factory=lambda: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

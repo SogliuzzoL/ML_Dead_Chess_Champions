@@ -28,13 +28,11 @@ def jsd_heatmap(config: Config):
     df = pl.read_parquet(
         config.paths.get_distances_path(method=config.jsd.method, is_test=True)
     )
+    print(df)
     pdf = df.to_pandas()
 
-    if "player_1" in pdf.columns and "player_2" in pdf.columns:
-        distance_col = "distance" if "distance" in pdf.columns else "jsd"
-        matrix_df = pdf.pivot(index="player_1", columns="player_2", values=distance_col)
-    else:
-        matrix_df = pdf.set_index(pdf.columns[0])
+    distance_col = "distance" if "distance" in pdf.columns else "jsd"
+    matrix_df = pdf.pivot(index="p1", columns="p2", values=distance_col)
 
     fig, ax = plt.subplots(figsize=(target_width, target_height))
 

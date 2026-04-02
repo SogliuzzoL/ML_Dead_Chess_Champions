@@ -89,6 +89,7 @@ class MCTS:
         board: chess.Board,
         num_simulations: int,
         c_puct: float = 1.5,
+        temperature: float = 1.0,
         threshold: float = 0.01,
         activ_elo: int | str = 2500,
         opp_elo: int | str = 2500,
@@ -168,13 +169,21 @@ class MCTS:
                 value = -value  # Negate value to account for alternating players
 
         # Select the root child with the maximal visit count as the final move.
-        max_visits = -1
-        for move, child in self.root.children.items():
-            if child.visits > max_visits:
-                max_visits = child.visits
-                best_root_move = move
+        if not self.root.children:
+            assert False, "Le nœud racine n'a pas d'enfants après simulation"
 
-        assert best_root_move is not None, "Selected best root move is None"
+        # Extraction des coups et de leurs nombres de visites respectifs
+        moves = list(self.root.children.keys())
+        visit_counts = np.array(
+            [child.visits for child in self.root.children.values()], dtype=np.float64
+        )
+
+        if temperature == 0:
+            best_root_move = moves[np.argmax(visit_counts)]
+        else:
+            visits_with_temp = np.power(visit_counts, 1.0 / temperature)
+            probabilities = visits_with_temp / np.sum(visits_with_temp)
+            best_root_move = np.random.choice(moves, p=probabilities)
 
         result = {move: child.maia_prob for move, child in self.root.children.items()}
         return best_root_move, result

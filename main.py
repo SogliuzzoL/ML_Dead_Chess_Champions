@@ -90,7 +90,7 @@ def main():
             compute_train_test_distances,
         )
 
-        logger.info(f"Commencing evaluation for method: {args.method.upper()}...")
+        logger.info(f"Commencing evaluation for method: {config.jsd.method}...")
         compute_distances(config, method=config.jsd.method, is_test=False)
         compute_distances(config, method=config.jsd.method, is_test=True)
         compute_train_test_distances(config, method=config.jsd.method)
