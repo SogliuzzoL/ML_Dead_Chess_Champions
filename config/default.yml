@@ -9,6 +9,7 @@ paths:
   train_set_path: "data/processed/train.parquet"
   test_set_path: "data/processed/test.parquet"
   opening_stats_path: "data/processed/opening_stats.parquet"
+  player_stats_path: "data/processed/player_stats.parquet"
 
   train_vectors_path: "data/processed/train_vectors.npy"
   test_vectors_path: "data/processed/test_vectors.npy"
@@ -23,6 +24,7 @@ paths:
   player_accuracies_path: "results/evaluation/player_accuracies_comparison.parquet"
   moves_distribution_graph_path: "results/graphics/moves_distribution.pdf"
   jsd_heatmap_path: "results/graphics/jsd_heatmap.pdf"
+  table_latex_path: "results/graphics/dataset_table.tex"
 
 data:
   max_workers: 10

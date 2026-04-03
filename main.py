@@ -62,9 +62,12 @@ def main():
 
     if args.step == "stats":
         from src.data.opening_stats import extract_opening_stats
+        from src.data.players_stats import extract_players_stats
 
         logger.info("Commencing extraction of opening statistics...")
         extract_opening_stats(config)
+        logger.info("Commencing extraction of player statistics...")
+        extract_players_stats(config)
 
     if args.step == "vectors":
         from src.features.compute_vectors import compute_vectors
@@ -154,9 +157,11 @@ def main():
 
     if args.step == "graphics":
         from src.visualization.graphics import generate_all_graphics
+        from src.visualization.tables import generate_latex_table
 
         logger.info("Generating all visualizations and graphics...")
         generate_all_graphics(config)
+        generate_latex_table(config)
 
 
 if __name__ == "__main__":

@@ -41,6 +41,7 @@ class PathsConfig(BaseModel):
     train_set_path: str = "data/processed/train.parquet"
     test_set_path: str = "data/processed/test.parquet"
     opening_stats_path: str = "data/processed/opening_stats.parquet"
+    player_stats_path: str = "data/processed/player_stats.parquet"
 
     train_vectors_path: str = "data/processed/train_vectors.npy"
     test_vectors_path: str = "data/processed/test_vectors.npy"
@@ -61,6 +62,7 @@ class PathsConfig(BaseModel):
 
     moves_distribution_graph_path: str = "results/graphics/moves_distribution.pdf"
     jsd_heatmap_path: str = "results/graphics/jsd_heatmap.pdf"
+    table_latex_path: str = "results/graphics/dataset_table.tex"
 
     def make_directories(self) -> None:
         """Ensure all configured filesystem paths exist on disk.

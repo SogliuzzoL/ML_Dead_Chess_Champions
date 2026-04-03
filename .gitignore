@@ -189,3 +189,7 @@ stockfish
 *.pth
 *.db
 *.db-journal
+*.tex
+*.fls
+*.fdb_latexmk
+*.aux
