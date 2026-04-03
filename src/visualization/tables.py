@@ -21,18 +21,18 @@ def generate_latex_table(config: Config) -> None:
     table_body = "\n".join(latex_rows)
 
     latex_template = f"""\\begin{{table}}[!t]
-\\renewcommand{{\\arraystretch}}{{1.3}}
-\\caption{{Overview of selected chess champions}}
-\\label{{tab:dataset}}
-\\centering
-\\begin{{tabular}}{{l c c}}
-\\hline
-\\bfseries Player & \\bfseries Average Year & \\bfseries Games \\\\
-\\hline\\hline
-{table_body}
-\\hline
-\\end{{tabular}}
-\\end{{table}}"""
+                         \\renewcommand{{\\arraystretch}}{{1.3}}
+                         \\caption{{Overview of selected chess champions}}
+                         \\label{{tab:dataset}}
+                         \\centering
+                         \\begin{{tabular}}{{l c c}}
+                         \\hline
+                         \\bfseries Player & \\bfseries Average game's year & \\bfseries Games \\\\
+                         \\hline\\hline
+                         {table_body}
+                         \\hline
+                         \\end{{tabular}}
+                         \\end{{table}}"""
     with open(config.paths.table_latex_path, "w", encoding="utf-8") as f:
         f.write(latex_template)
 

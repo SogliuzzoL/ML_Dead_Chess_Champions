@@ -25,7 +25,7 @@ def main():
             "evaluate_players",
             "tournament",
             "ui",
-            "graphics",
+            "visualize",
         ],
         help="Pipeline stage to execute",
     )
@@ -155,7 +155,7 @@ def main():
         logger.info("Launching the web interface...")
         run_ui(config)
 
-    if args.step == "graphics":
+    if args.step == "visualize":
         from src.visualization.graphics import generate_all_graphics
         from src.visualization.tables import generate_latex_table
 
