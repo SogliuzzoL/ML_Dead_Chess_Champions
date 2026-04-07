@@ -26,7 +26,9 @@ target_height = 2.5
 
 def jsd_heatmap(config: Config):
     df = pl.read_parquet(
-        config.paths.get_distances_path(method=config.jsd.method, is_test=True)
+        config.paths.get_distances_path(
+            method=config.jsd.method, is_test=True, kde=True
+        )
     )
     print(df)
     pdf = df.to_pandas()

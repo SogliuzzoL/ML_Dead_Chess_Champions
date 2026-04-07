@@ -157,11 +157,11 @@ def main():
 
     if args.step == "visualize":
         from src.visualization.graphics import generate_all_graphics
-        from src.visualization.tables import generate_latex_table
+        from src.visualization.tables import generate_all_tables
 
         logger.info("Generating all visualizations and graphics...")
+        generate_all_tables(config)
         generate_all_graphics(config)
-        generate_latex_table(config)
 
 
 if __name__ == "__main__":

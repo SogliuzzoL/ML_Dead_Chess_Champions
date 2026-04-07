@@ -63,6 +63,7 @@ class PathsConfig(BaseModel):
     moves_distribution_graph_path: str = "results/graphics/moves_distribution.pdf"
     jsd_heatmap_path: str = "results/graphics/jsd_heatmap.pdf"
     table_latex_path: str = "results/graphics/dataset_table.tex"
+    ae_table_latex_path: str = "results/graphics/autoencoder_table.tex"
 
     def make_directories(self) -> None:
         """Ensure all configured filesystem paths exist on disk.
