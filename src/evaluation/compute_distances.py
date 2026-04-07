@@ -11,11 +11,38 @@ import numpy as np
 import polars as pl
 import tqdm
 from scipy.spatial.distance import jensenshannon
+from scipy.stats import gaussian_kde
 
 from src.core.config import Config
 from src.core.utils import getLogger
 
 logger = getLogger()
+
+
+def compute_js_distance_continuous(emb1: np.ndarray, emb2: np.ndarray) -> float:
+    """
+    Compute the Jensen-Shannon divergence between two empirical ND distributions using KDE.
+    """
+    kde_p = gaussian_kde(emb1.T)
+    kde_q = gaussian_kde(emb2.T)
+
+    eps = 1e-10
+
+    p_eval_p = kde_p(emb1.T)
+    q_eval_p = kde_q(emb1.T)
+    m_eval_p = 0.5 * (p_eval_p + q_eval_p)
+
+    kl_pm = np.mean(np.log2(p_eval_p + eps) - np.log2(m_eval_p + eps))
+
+    p_eval_q = kde_p(emb2.T)
+    q_eval_q = kde_q(emb2.T)
+    m_eval_q = 0.5 * (p_eval_q + q_eval_q)
+
+    kl_qm = np.mean(np.log2(q_eval_q + eps) - np.log2(m_eval_q + eps))
+
+    js_divergence = 0.5 * kl_pm + 0.5 * kl_qm
+    js_divergence = max(0.0, js_divergence)
+    return np.sqrt(js_divergence)
 
 
 def compute_js_distance(
@@ -41,11 +68,13 @@ def _get_dim_columns(df: pl.DataFrame) -> list:
     return [col for col in df.columns if col not in ["player_name", "game_id"]]
 
 
-def compute_distances(config: Config, method: str, is_test: bool = False) -> None:
+def compute_distances(
+    config: Config, method: str, is_test: bool = False, kde: bool = True
+) -> None:
     """Compute stylistic distances between players for a specified embedding method."""
 
     input_path = config.paths.get_embeddings_path(method, is_test)
-    output_path = config.paths.get_distances_path(method, is_test)
+    output_path = config.paths.get_distances_path(method, is_test, kde)
 
     logger.info(f"Loading {method.upper()} representations from {input_path}...")
     df = pl.read_parquet(input_path)
@@ -72,7 +101,10 @@ def compute_distances(config: Config, method: str, is_test: bool = False) -> Non
         if len(emb1) == 0 or len(emb2) == 0:
             continue
 
-        distance_js = compute_js_distance(emb1, emb2, bounds=global_bounds)
+        if kde:
+            distance_js = compute_js_distance_continuous(emb1, emb2)
+        else:
+            distance_js = compute_js_distance(emb1, emb2, bounds=global_bounds)
         distance_data.append({"p1": p1, "p2": p2, "distance": distance_js})
 
     distance_df = pl.DataFrame(distance_data)
@@ -80,12 +112,12 @@ def compute_distances(config: Config, method: str, is_test: bool = False) -> Non
     distance_df.write_parquet(output_path)
 
 
-def compute_train_test_distances(config: Config, method: str) -> None:
+def compute_train_test_distances(config: Config, method: str, kde: bool = True) -> None:
     """Evaluate the stability of an embedding method by comparing training and test splits."""
 
     train_path = config.paths.get_embeddings_path(method, is_test=False)
     test_path = config.paths.get_embeddings_path(method, is_test=True)
-    output_path = config.paths.get_cross_distances_path(method)
+    output_path = config.paths.get_cross_distances_path(method, kde)
 
     logger.info(f"Loading training and test representations for {method.upper()}...")
     df_train = pl.read_parquet(train_path)
@@ -122,7 +154,11 @@ def compute_train_test_distances(config: Config, method: str) -> None:
         if len(emb_train) == 0 or len(emb_test) == 0:
             continue
 
-        distance_js = compute_js_distance(emb_train, emb_test, bounds=global_bounds)
+        if kde:
+            distance_js = compute_js_distance_continuous(emb_train, emb_test)
+        else:
+            distance_js = compute_js_distance(emb_train, emb_test, bounds=global_bounds)
+
         distance_data.append({"player": player, "distance": distance_js})
 
     distance_df = pl.DataFrame(distance_data)

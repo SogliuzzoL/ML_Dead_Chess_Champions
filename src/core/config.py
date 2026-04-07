@@ -101,14 +101,16 @@ class PathsConfig(BaseModel):
         split = "test" if is_test else "train"
         return f"data/processed/{split}_{method}.parquet"
 
-    def get_distances_path(self, method: str, is_test: bool) -> str:
+    def get_distances_path(self, method: str, is_test: bool, kde: bool) -> str:
         """Return a canonical path for distance tables for a given method."""
         split = "test" if is_test else "train"
-        return f"{self.evaluation_dir}distances_{split}_{method}.parquet"
+        kde_suffix = "_kde" if kde else ""
+        return f"{self.evaluation_dir}distances_{split}_{method}{kde_suffix}.parquet"
 
-    def get_cross_distances_path(self, method: str) -> str:
+    def get_cross_distances_path(self, method: str, kde: bool) -> str:
         """Return the canonical path for cross-split distances for `method`."""
-        return f"{self.evaluation_dir}cross_distances_{method}.parquet"
+        kde_suffix = "_kde" if kde else ""
+        return f"{self.evaluation_dir}cross_distances_{method}{kde_suffix}.parquet"
 
 
 class JSDConfig(BaseModel):
