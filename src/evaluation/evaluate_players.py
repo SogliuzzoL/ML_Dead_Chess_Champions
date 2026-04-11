@@ -1,26 +1,27 @@
 """Evaluation routines for assessing per-player predictive performance.
 
 This module provides dataset utilities and an evaluation driver that compares
-the predictive accuracy of a Maia model conditioned on learned per-player
-embeddings against a baseline Maia model. The principal entry point,
-`evaluate_players(config, force_train=False)`, optionally triggers training of
-per-player embeddings, evaluates the customized model on the test split, and
-computes baseline accuracies using the unmodified Maia backbone.
+the predictive accuracy and Jensen-Shannon Divergence (JSD) of a Maia model
+conditioned on learned per-player embeddings, against a baseline Maia model
+and a Custom model augmented with Monte Carlo Tree Search (MCTS).
 """
 
+import json
+from pathlib import Path
 from typing import Dict, Tuple
 
 import chess
 import polars as pl
 import torch
-from maia2.inference import inference_batch
 from maia2.model import from_pretrained
 from maia2.utils import board_to_tensor, get_all_possible_moves, mirror_move
+from scipy.spatial.distance import jensenshannon
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from src.core.config import Config
 from src.core.utils import getLogger
+from src.models.batched_mcts import BatchedMCTSManager
 from src.models.maia import MaiaEngine
 from src.training.train_players import run_training
 
@@ -76,13 +77,264 @@ class EvaluationDataset(Dataset):
         return board_tensor, active_player_idx, opponent_idx, move_label, legal_mask
 
 
-def evaluate_players(config: Config, force_train: bool = False) -> None:
-    """Evaluate per-player predictive accuracy and compare to the baseline model.
+def generate_predictions_parquet(
+    config: Config, num_mcts_simulations: int = 1000
+) -> None:
+    """Generates predictions and probabilities for Baseline, Custom, and MCTS models."""
+    engine = MaiaEngine(config)
+    baseline_model = from_pretrained("rapid", device=engine.device)
+    baseline_model.eval()
+    engine.model.eval()
 
-    This function optionally triggers per-player embedding training (if
-    `force_train` is True), evaluates the customised Maia model on the test set,
-    computes baseline accuracies using the unmodified Maia backbone, aggregates
-    per-player metrics and persists the comparison table to disk.
+    all_moves = get_all_possible_moves()
+    all_moves_dict = {move: i for i, move in enumerate(all_moves)}
+    all_moves_dict_reversed = {i: move for move, i in all_moves_dict.items()}
+
+    _base_elo_idx = engine._get_style_idx(2500)
+    base_elo_idx = int(_base_elo_idx) if _base_elo_idx is not None else 0
+
+    df_test = pl.read_parquet(config.paths.test_set_path)
+
+    test_dataset = EvaluationDataset(
+        config.paths.test_set_path, engine.player_to_idx, all_moves_dict, base_elo_idx
+    )
+    test_loader = DataLoader(test_dataset, batch_size=512, shuffle=False, num_workers=4)
+
+    baseline_preds_temp = []
+    baseline_probs_temp = []
+    custom_preds_temp = []
+    custom_probs_temp = []
+
+    # =========================================================================
+    # 1. INFÉRENCE EN BATCH (Baseline & Custom Model)
+    # =========================================================================
+    logger.info("1/3 Inférence en batch pour les modèles Baseline et Custom...")
+    with torch.no_grad():
+        for boards, active_ids, opponent_ids, _, legal_masks in tqdm(
+            test_loader, desc="Batch Inference"
+        ):
+            boards = boards.to(engine.device, non_blocking=True)
+            active_ids = active_ids.to(engine.device, non_blocking=True)
+            opponent_ids = opponent_ids.to(engine.device, non_blocking=True)
+            legal_masks = legal_masks.to(engine.device, non_blocking=True)
+
+            base_ids = torch.full_like(active_ids, base_elo_idx)
+
+            # --- Baseline Model ---
+            logits_base, _, _ = baseline_model(boards, base_ids, base_ids)
+            logits_base = logits_base.masked_fill(~legal_masks, -float("inf"))
+            probs_base = logits_base.softmax(dim=-1)
+            preds_base = logits_base.argmax(dim=-1)
+
+            # --- Custom Model ---
+            logits_custom, _, _ = engine.model(boards, active_ids, base_ids)
+            logits_custom = logits_custom.masked_fill(~legal_masks, -float("inf"))
+            probs_custom = logits_custom.softmax(dim=-1)
+            preds_custom = logits_custom.argmax(dim=-1)
+
+            probs_base_cpu = probs_base.cpu().numpy()
+            probs_custom_cpu = probs_custom.cpu().numpy()
+            legal_masks_cpu = legal_masks.cpu().numpy()
+            preds_base_cpu = preds_base.cpu().numpy()
+            preds_custom_cpu = preds_custom.cpu().numpy()
+
+            for i in range(boards.size(0)):
+                dict_base = {}
+                dict_custom = {}
+                legal_indices = legal_masks_cpu[i].nonzero()[0]
+
+                for idx in legal_indices:
+                    move_uci = all_moves_dict_reversed[idx]
+                    dict_base[move_uci] = float(probs_base_cpu[i, idx])
+                    dict_custom[move_uci] = float(probs_custom_cpu[i, idx])
+
+                baseline_probs_temp.append(dict_base)
+                custom_probs_temp.append(dict_custom)
+                baseline_preds_temp.append(all_moves_dict_reversed[preds_base_cpu[i]])
+                custom_preds_temp.append(all_moves_dict_reversed[preds_custom_cpu[i]])
+
+    # =========================================================================
+    # 2. ALIGNEMENT ET DÉ-MIROIR (Baseline & Custom Model)
+    # =========================================================================
+    logger.info("2/3 Réalignement des espaces de coups (de-mirroring)...")
+    colors = df_test["player_color"].to_list()
+
+    final_base_preds, final_base_probs = [], []
+    final_custom_preds, final_custom_probs = [], []
+
+    for idx in range(len(colors)):
+        is_black = colors[idx] == "black"
+
+        p_base = baseline_probs_temp[idx]
+        p_cust = custom_probs_temp[idx]
+        pred_b = baseline_preds_temp[idx]
+        pred_c = custom_preds_temp[idx]
+
+        if is_black:
+            p_base = {mirror_move(m): v for m, v in p_base.items()}
+            p_cust = {mirror_move(m): v for m, v in p_cust.items()}
+            pred_b = mirror_move(pred_b)
+            pred_c = mirror_move(pred_c)
+
+        final_base_preds.append(pred_b)
+        final_base_probs.append(json.dumps(p_base))
+        final_custom_preds.append(pred_c)
+        final_custom_probs.append(json.dumps(p_cust))
+
+    # =========================================================================
+    # 3. INFÉRENCE BATCHÉE (MCTS)
+    # =========================================================================
+
+    mcts_preds = []
+    mcts_probs = []
+
+    mcts_manager = BatchedMCTSManager(engine, threshold=0.01)
+
+    # Paramètre de batching : 512 arbres calculés en parallèle
+    mcts_batch_size = 512
+
+    fens_list = df_test["fen"].to_list()
+    players_list = df_test["player_name"].to_list()
+
+    logger.info(f"3/3 Inférence MCTS Batchée ({num_mcts_simulations} sim/pos)...")
+
+    for i in tqdm(range(0, len(fens_list), mcts_batch_size), desc="MCTS Batches"):
+        batch_fens = fens_list[i : i + mcts_batch_size]
+        batch_players = players_list[i : i + mcts_batch_size]
+
+        best_moves, root_probs_list = mcts_manager.run_batch(
+            fens=batch_fens,
+            active_elos=batch_players,
+            num_simulations=num_mcts_simulations,
+        )
+
+        mcts_preds.extend(best_moves)
+        mcts_probs.extend([json.dumps(p) for p in root_probs_list])
+
+    # =========================================================================
+    # 4. ASSEMBLAGE ET SAUVEGARDE
+    # =========================================================================
+    df_predictions = df_test.select(["game_id", "fen", "player_name", "move"]).rename(
+        {"move": "true_move"}
+    )
+    df_predictions = df_predictions.with_columns(
+        [
+            pl.Series("pred_baseline", final_base_preds),
+            pl.Series("probs_baseline", final_base_probs),
+            pl.Series("pred_custom", final_custom_preds),
+            pl.Series("probs_custom", final_custom_probs),
+            pl.Series("pred_mcts", mcts_preds),
+            pl.Series("probs_mcts", mcts_probs),
+        ]
+    )
+
+    output_path = config.paths.predictions_path
+    df_predictions.write_parquet(output_path)
+    logger.info(f"Fichier de prédictions sauvegardé dans {output_path}")
+
+
+def calculate_metrics_from_parquet(
+    predictions_path: str, output_results_path: str
+) -> pl.DataFrame:
+    """Calculates Accuracy and JSD from the predictions parquet file."""
+    logger.info("Calcul des métriques (Accuracy et JSD) à partir des prédictions...")
+    df = pl.read_parquet(predictions_path)
+
+    results = {}
+
+    for row in tqdm(
+        df.iter_rows(named=True), total=len(df), desc="Calcul JSD et Accuracy"
+    ):
+        player = row["player_name"]
+        true_move = row["true_move"]
+
+        if player not in results:
+            results[player] = {
+                "n_positions": 0,
+                "baseline_correct": 0,
+                "custom_correct": 0,
+                "mcts_correct": 0,
+                "baseline_jsd_sum": 0.0,
+                "custom_jsd_sum": 0.0,
+                "mcts_jsd_sum": 0.0,
+            }
+
+        stats = results[player]
+        stats["n_positions"] += 1
+
+        # --- Accuracy ---
+        if row["pred_baseline"] == true_move:
+            stats["baseline_correct"] += 1
+        if row["pred_custom"] == true_move:
+            stats["custom_correct"] += 1
+        if row["pred_mcts"] == true_move:
+            stats["mcts_correct"] += 1
+
+        # --- JSD ---
+        probs_base = json.loads(row["probs_baseline"])
+        probs_custom = json.loads(row["probs_custom"])
+        probs_mcts = json.loads(row["probs_mcts"])
+
+        all_moves = (
+            set(probs_base.keys())
+            .union(set(probs_custom.keys()))
+            .union(set(probs_mcts.keys()))
+            .union({true_move})
+        )
+
+        vec_true, vec_base, vec_custom, vec_mcts = [], [], [], []
+
+        for move in all_moves:
+            vec_true.append(1.0 if move == true_move else 0.0)
+            vec_base.append(probs_base.get(move, 0.0))
+            vec_custom.append(probs_custom.get(move, 0.0))
+            vec_mcts.append(probs_mcts.get(move, 0.0))
+
+        # Normalisation légère pour JSD (au cas où MCTS a pruné des enfants)
+        sum_base = sum(vec_base) or 1.0
+        sum_custom = sum(vec_custom) or 1.0
+        sum_mcts = sum(vec_mcts) or 1.0
+
+        vec_base = [v / sum_base for v in vec_base]
+        vec_custom = [v / sum_custom for v in vec_custom]
+        vec_mcts = [v / sum_mcts for v in vec_mcts]
+
+        stats["baseline_jsd_sum"] += jensenshannon(vec_true, vec_base)
+        stats["custom_jsd_sum"] += jensenshannon(vec_true, vec_custom)
+        stats["mcts_jsd_sum"] += jensenshannon(vec_true, vec_mcts)
+
+    final_metrics = []
+    for player, stats in results.items():
+        n = stats["n_positions"]
+        if n > 0:
+            final_metrics.append(
+                {
+                    "player": player,
+                    "n_positions": n,
+                    "baseline_accuracy": round(stats["baseline_correct"] / n, 4),
+                    "custom_accuracy": round(stats["custom_correct"] / n, 4),
+                    "mcts_accuracy": round(stats["mcts_correct"] / n, 4),
+                    "baseline_jsd": round(stats["baseline_jsd_sum"] / n, 4),
+                    "custom_jsd": round(stats["custom_jsd_sum"] / n, 4),
+                    "mcts_jsd": round(stats["mcts_jsd_sum"] / n, 4),
+                }
+            )
+
+    df_results = pl.DataFrame(final_metrics).sort("custom_accuracy", descending=True)
+    df_results.write_parquet(output_results_path)
+    logger.info(f"Comparaison finale sauvegardée dans {output_results_path}")
+
+    return df_results
+
+
+def evaluate_players(
+    config: Config, force_train: bool = False, num_mcts_simulations: int = 1000
+) -> None:
+    """Evaluate per-player predictive accuracy and JSD comparing Baseline, Custom and MCTS.
+
+    This function optionally triggers per-player embedding training, generates a dataset
+    of predictions (batching direct models, simulating MCTS), and finally computes and
+    aggregates accuracy and JSD metrics.
     """
     if force_train:
         logger.info(
@@ -90,79 +342,18 @@ def evaluate_players(config: Config, force_train: bool = False) -> None:
         )
         run_training(config)
 
-    engine = MaiaEngine(config)
-    baseline_model = from_pretrained("rapid", device=engine.device)
+    # Définition des chemins
+    eval_dir = Path(config.paths.evaluation_dir)
+    eval_dir.mkdir(parents=True, exist_ok=True)
 
-    all_moves = get_all_possible_moves()
-    all_moves_dict = {move: i for i, move in enumerate(all_moves)}
-    base_elo_idx = engine._get_style_idx(2500)
-    assert base_elo_idx is not None
+    predictions_path = str(eval_dir / "predictions_test.parquet")
+    results_path = config.paths.player_accuracies_path
 
-    test_dataset = EvaluationDataset(
-        config.paths.test_set_path, engine.player_to_idx, all_moves_dict, base_elo_idx
-    )
-    test_loader = DataLoader(test_dataset, batch_size=512, shuffle=False, num_workers=4)
+    # Étape 1 : Générer les prédictions
+    generate_predictions_parquet(config, num_mcts_simulations)
 
-    logger.info("Commencing evaluation on the test split...")
-    correct_preds_custom, player_ids = engine.evaluate_batch(test_loader)
+    # Étape 2 : Calculer les métriques
+    df_results = calculate_metrics_from_parquet(predictions_path, results_path)
 
-    idx_to_player = {idx: player for player, idx in engine.player_to_idx.items()}
-
-    metrics = {
-        player: {"n_positions": 0, "custom_correct": 0, "baseline_accuracy": 0.0}
-        for player in config.data.players.values()
-    }
-
-    for i in range(len(player_ids)):
-        if player_ids[i] in idx_to_player:
-            player_name = idx_to_player[player_ids[i]]
-            metrics[player_name]["n_positions"] += 1
-            if correct_preds_custom[i]:
-                metrics[player_name]["custom_correct"] += 1
-
-    df_full = pl.read_parquet(config.paths.test_set_path).with_columns(
-        active_elo=pl.lit(2500), opponent_elo=pl.lit(2500)
-    )
-    maia_col_order = ["fen", "move", "active_elo", "opponent_elo"]
-
-    logger.info("Computing baseline accuracies using the unmodified Maia backbone...")
-    for player_name in tqdm(config.data.players.values(), desc="Baseline evaluation"):
-        player_mask = df_full["player_name"] == player_name
-        if not player_mask.any():
-            continue
-
-        df_player = df_full.filter(player_mask).select(maia_col_order)
-
-        _, baseline_acc = inference_batch(
-            df_player.to_pandas(),
-            baseline_model,
-            batch_size=512,
-            num_workers=4,
-            verbose=False,
-        )
-        metrics[player_name]["baseline_accuracy"] = baseline_acc
-
-    results = []
-    for p, stats in metrics.items():
-        if stats["n_positions"] > 0:
-            custom_acc = round(stats["custom_correct"] / stats["n_positions"], 4)
-            baseline_acc = round(stats["baseline_accuracy"], 4)
-
-            results.append(
-                {
-                    "player": p,
-                    "n_positions": stats["n_positions"],
-                    "baseline_accuracy": baseline_acc,
-                    "custom_accuracy": custom_acc,
-                    "absolute_improvement": round(custom_acc - baseline_acc, 4),
-                }
-            )
-
-    df_results = pl.DataFrame(results).sort("absolute_improvement", descending=True)
-
-    output_path = config.paths.player_accuracies_path
-    df_results.write_parquet(output_path)
-    logger.info(f"Final per-player accuracy comparison saved to {output_path}")
-
-    logger.info("Summary of per-player predictive improvement:")
-    logger.info(str(df_results))
+    logger.info("Summary of per-player predictive metrics:")
+    logger.info("\n" + str(df_results))

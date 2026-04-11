@@ -59,6 +59,7 @@ class PathsConfig(BaseModel):
     player_accuracies_path: str = (
         "results/evaluation/player_accuracies_comparison.parquet"
     )
+    predictions_path: str = "results/evaluation/predictions.parquet"
 
     moves_distribution_graph_path: str = "results/graphics/moves_distribution.pdf"
     jsd_heatmap_path: str = "results/graphics/jsd_heatmap.pdf"
