@@ -24,6 +24,7 @@ paths:
   player_accuracies_path: "results/evaluation/player_accuracies_comparison.parquet"
   moves_distribution_graph_path: "results/graphics/moves_distribution.pdf"
   jsd_heatmap_path: "results/graphics/jsd_heatmap.pdf"
+  jsd_stability_heatmap_path: "results/graphics/jsd_stability_heatmap.pdf"
   table_latex_path: "results/graphics/dataset_table.tex"
 
 data:
@@ -78,3 +79,4 @@ player_training:
 
 jsd:
   method: "umap"
+  kde: False

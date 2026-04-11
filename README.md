@@ -36,6 +36,11 @@ python main.py umap --config config/default.yml
 python main.py evaluate --config config/default.yml --method umap
 ```
 
+For the umap it's recommended to use cuML
+```
+python -m cuml.accel main.py umap
+```
+
 ## Configuration
 All runtime parameters and filesystem paths are centralised in a Pydantic `Config` model defined within `src/core/config.py`. The pipeline reads configuration overrides from a YAML file (default path: `config/default.yml`) when present; otherwise, it employs sensible defaults. The `Config.from_yaml(path)` helper performs validation and creates the required directory layout.
 

@@ -164,3 +164,66 @@ def compute_train_test_distances(config: Config, method: str, kde: bool = True) 
     distance_df = pl.DataFrame(distance_data)
     logger.info(f"Saving cross-split analysis to {output_path}")
     distance_df.write_parquet(output_path)
+
+
+def compute_full_cross_matrix(config: Config, method: str, kde: bool = True) -> None:
+    """
+    Calcule la matrice complète et non-symétrique des distances entre
+    tous les joueurs du Train set et tous les joueurs du Test set.
+    """
+    train_path = config.paths.get_embeddings_path(method, is_test=False)
+    test_path = config.paths.get_embeddings_path(method, is_test=True)
+
+    output_path = config.paths.get_full_cross_matrix_path(method, kde)
+
+    logger.info(f"Loading representations for full cross-matrix ({method.upper()})...")
+    df_train = pl.read_parquet(train_path)
+    df_test = pl.read_parquet(test_path)
+
+    cols = _get_dim_columns(df_train)
+    distance_data = []
+
+    players = df_train["player_name"].unique().to_list()
+
+    # Détermination des limites globales (comme dans tes autres fonctions)
+    global_bounds = [
+        [
+            min(df_train[cols[0]].min(), df_test[cols[0]].min()),
+            max(df_train[cols[0]].max(), df_test[cols[0]].max()),
+        ],
+        [
+            min(df_train[cols[1]].min(), df_test[cols[1]].min()),
+            max(df_train[cols[1]].max(), df_test[cols[1]].max()),
+        ],
+    ]
+
+    # Double boucle pour la matrice asymétrique complète
+    progress_bar = tqdm.tqdm(players, desc=f"Full Cross-Matrix ({method.upper()})")
+
+    for p_train in progress_bar:
+        emb_train = (
+            df_train.filter(pl.col("player_name") == p_train).select(cols).to_numpy()
+        )
+
+        for p_test in players:
+            emb_test = (
+                df_test.filter(pl.col("player_name") == p_test).select(cols).to_numpy()
+            )
+
+            if len(emb_train) == 0 or len(emb_test) == 0:
+                continue
+
+            if kde:
+                distance_js = compute_js_distance_continuous(emb_train, emb_test)
+            else:
+                distance_js = compute_js_distance(
+                    emb_train, emb_test, bounds=global_bounds
+                )
+
+            distance_data.append(
+                {"p_train": p_train, "p_test": p_test, "distance": distance_js}
+            )
+
+    distance_df = pl.DataFrame(distance_data)
+    logger.info(f"Saving full cross matrix to {output_path}")
+    distance_df.write_parquet(output_path)

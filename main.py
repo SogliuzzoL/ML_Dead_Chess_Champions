@@ -90,13 +90,21 @@ def main():
     if args.step == "evaluate":
         from src.evaluation.compute_distances import (
             compute_distances,
+            compute_full_cross_matrix,
             compute_train_test_distances,
         )
 
         logger.info(f"Commencing evaluation for method: {config.jsd.method}...")
-        compute_distances(config, method=config.jsd.method, is_test=False)
-        compute_distances(config, method=config.jsd.method, is_test=True)
-        compute_train_test_distances(config, method=config.jsd.method)
+        compute_distances(
+            config, method=config.jsd.method, is_test=False, kde=config.jsd.kde
+        )
+        compute_distances(
+            config, method=config.jsd.method, is_test=True, kde=config.jsd.kde
+        )
+        compute_train_test_distances(
+            config, method=config.jsd.method, kde=config.jsd.kde
+        )
+        compute_full_cross_matrix(config, method=config.jsd.method, kde=config.jsd.kde)
 
     if args.step == "train_players":
         from src.training.train_players import run_training

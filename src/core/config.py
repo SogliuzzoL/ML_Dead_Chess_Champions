@@ -62,6 +62,7 @@ class PathsConfig(BaseModel):
 
     moves_distribution_graph_path: str = "results/graphics/moves_distribution.pdf"
     jsd_heatmap_path: str = "results/graphics/jsd_heatmap.pdf"
+    jsd_stability_heatmap_path: str = "results/graphics/jsd_stability_heatmap.pdf"
     table_latex_path: str = "results/graphics/dataset_table.tex"
     ae_table_latex_path: str = "results/graphics/autoencoder_table.tex"
 
@@ -113,9 +114,14 @@ class PathsConfig(BaseModel):
         kde_suffix = "_kde" if kde else ""
         return f"{self.evaluation_dir}cross_distances_{method}{kde_suffix}.parquet"
 
+    def get_full_cross_matrix_path(self, method: str, kde: bool) -> str:
+        kde_suffix = "_kde" if kde else ""
+        return f"{self.evaluation_dir}full_cross_distances_{method}{kde_suffix}.parquet"
+
 
 class JSDConfig(BaseModel):
     method: str = "umap"
+    kde: bool = False
 
 
 class PlayerTrainingConfig(BaseModel):
