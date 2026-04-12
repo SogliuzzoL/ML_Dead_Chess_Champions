@@ -142,9 +142,9 @@ class PlayerTrainingConfig(BaseModel):
         Learning rate used by the optimizer.
     """
 
-    epochs: int = 10
-    batch_size: int = 512
-    learning_rate: float = 1e-4
+    epochs: int = 100
+    batch_size: int = 2048
+    learning_rate: float = 5e-4
 
 
 class UMAPConfig(BaseModel):

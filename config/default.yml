@@ -4,13 +4,11 @@ paths:
   model: "models/"
   result: "results/"
   evaluation_dir: "results/evaluation/"
-
   dataset_path: "data/processed/dataset.parquet"
   train_set_path: "data/processed/train.parquet"
   test_set_path: "data/processed/test.parquet"
   opening_stats_path: "data/processed/opening_stats.parquet"
   player_stats_path: "data/processed/player_stats.parquet"
-
   train_vectors_path: "data/processed/train_vectors.npy"
   test_vectors_path: "data/processed/test_vectors.npy"
   autoencoder_model_path: "models/saved/autoencoder.pth"
@@ -20,20 +18,20 @@ paths:
   test_umap_result_path: "data/processed/test_umap.parquet"
   umap_model_path: "models/saved/style_umap.pkl"
   champions_embeddings_path: "models/saved/champions_embeddings.pth"
-
   player_accuracies_path: "results/evaluation/player_accuracies_comparison.parquet"
+  predictions_path: "results/evaluation/predictions.parquet"
   moves_distribution_graph_path: "results/graphics/moves_distribution.pdf"
   jsd_heatmap_path: "results/graphics/jsd_heatmap.pdf"
   jsd_stability_heatmap_path: "results/graphics/jsd_stability_heatmap.pdf"
   table_latex_path: "results/graphics/dataset_table.tex"
+  ae_table_latex_path: "results/graphics/autoencoder_table.tex"
 
 data:
-  max_workers: 10
+  max_workers: 5
   headers:
     User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     Accept-Language: "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7"
     Referer: "https://www.google.com/"
-
   players:
     "10240": "Alekhine"
     "12112": "Andersson"
@@ -51,7 +49,6 @@ data:
     "12181": "Short"
     "14380": "Tal"
     "14220": "Timman"
-
   dataset_col_order:
     - "game_id"
     - "round"
@@ -73,10 +70,10 @@ umap:
   n_components: 2
 
 player_training:
-  epochs: 10
-  batch_size: 512
-  learning_rate: 0.0001
+  epochs: 100
+  batch_size: 2048
+  learning_rate: 0.0005
 
 jsd:
   method: "umap"
-  kde: False
+  kde: false
