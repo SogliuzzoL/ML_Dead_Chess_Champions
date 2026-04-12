@@ -18,7 +18,6 @@ import polars as pl
 import torch
 from maia2.model import from_pretrained
 from maia2.utils import board_to_tensor, get_all_possible_moves, mirror_move
-from scipy.spatial.distance import jensenshannon
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
