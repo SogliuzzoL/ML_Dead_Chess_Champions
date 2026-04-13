@@ -29,10 +29,7 @@ echo " DÉMARRAGE DU JOB : $(date)"
 echo " Nœud             : $SLURM_JOB_NODELIST"
 echo "=========================================================="
 
-echo "Lancement de l'entraînement des embeddings..."
-uv run main.py train_players
-
-echo "Lancement de l'évaluation MCTS..."
+echo "Lancement de l'évaluation ..."
 uv run main.py evaluate_players
 
 echo "=========================================================="
