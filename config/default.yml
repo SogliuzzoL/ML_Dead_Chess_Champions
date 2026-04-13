@@ -25,6 +25,7 @@ paths:
   jsd_stability_heatmap_path: "results/graphics/jsd_stability_heatmap.pdf"
   table_latex_path: "results/graphics/dataset_table.tex"
   ae_table_latex_path: "results/graphics/autoencoder_table.tex"
+  learning_curves_path: "results/evaluation/learning_curves.parquet"
 
 data:
   max_workers: 5
@@ -70,9 +71,9 @@ umap:
   n_components: 2
 
 player_training:
-  epochs: 100
-  batch_size: 2048
-  learning_rate: 0.0005
+  epochs: 50
+  batch_size: 128
+  learning_rate: 0.0001
 
 jsd:
   method: "umap"

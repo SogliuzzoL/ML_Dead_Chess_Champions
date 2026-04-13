@@ -56,6 +56,7 @@ class PathsConfig(BaseModel):
     umap_model_path: str = "models/saved/style_umap.pkl"
 
     champions_embeddings_path: str = "models/saved/champions_embeddings.pth"
+    learning_curves_path: str = "results/evaluation/learning_curves.parquet"
     player_accuracies_path: str = (
         "results/evaluation/player_accuracies_comparison.parquet"
     )
@@ -142,8 +143,8 @@ class PlayerTrainingConfig(BaseModel):
         Learning rate used by the optimizer.
     """
 
-    epochs: int = 100
-    batch_size: int = 2048
+    epochs: int = 50
+    batch_size: int = 128
     learning_rate: float = 5e-4
 
 

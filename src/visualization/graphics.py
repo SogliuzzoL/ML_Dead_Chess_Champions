@@ -351,6 +351,78 @@ def stability_heatmap(config: Config) -> None:
     plt.close(fig)
 
 
+def learning_curves(config: Config) -> None:
+    """
+    Generate learning curves (loss and accuracy) from the training history parquet file.
+
+    The resulting figure contains two subplots:
+    1. Cross-Entropy Loss on the training set.
+    2. Predictive Accuracy on both the training and test sets.
+    """
+    history_path = Path(config.paths.evaluation_dir) / "learning_curves.parquet"
+    df = _safe_read_parquet(str(history_path))
+
+    if df is None:
+        logger.error(
+            "Learning curves aborted: missing %s. Run training first.", history_path
+        )
+        return
+
+    pdf = df.to_pandas()
+    epochs = pdf["epoch"]
+
+    # Création de la figure avec 2 sous-graphes
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(FIG_WIDTH * 2.2, DISTRIBUTION_HEIGHT))
+
+    # --- Sous-graphe 1 : Loss ---
+    ax1.plot(
+        epochs,
+        pdf["train_loss"],
+        label="Train Loss",
+        color="crimson",
+        marker="o",
+        markersize=3,
+        linewidth=1.5,
+    )
+    ax1.set_title("Training Loss")
+    ax1.set_xlabel("Epochs")
+    ax1.set_ylabel("Cross-Entropy Loss")
+    ax1.grid(True, linestyle="--", alpha=0.5)
+    ax1.legend(frameon=False)
+
+    # --- Sous-graphe 2 : Accuracy ---
+    ax2.plot(
+        epochs,
+        pdf["train_accuracy"],
+        label="Train Accuracy",
+        color="navy",
+        marker="o",
+        markersize=3,
+        linewidth=1.5,
+    )
+    ax2.plot(
+        epochs,
+        pdf["test_accuracy"],
+        label="Test Accuracy",
+        color="forestgreen",
+        marker="s",
+        markersize=3,
+        linewidth=1.5,
+    )
+    ax2.set_title("Accuracy (Train vs Test)")
+    ax2.set_xlabel("Epochs")
+    ax2.set_ylabel("Accuracy")
+    ax2.grid(True, linestyle="--", alpha=0.5)
+    ax2.legend(frameon=False)
+
+    sns.despine(fig=fig)
+    fig.tight_layout()
+
+    out_path = str(Path(config.paths.result) / "graphics" / "learning_curves.pdf")
+    _save_figure(fig, out_path)
+    plt.close(fig)
+
+
 def generate_all_graphics(config: Config) -> None:
     """
     Convenience function to generate all standard graphics in sequence.
@@ -358,6 +430,9 @@ def generate_all_graphics(config: Config) -> None:
     Each plotting function logs its own progress and failures, allowing this routine
     to run unattended in batch evaluation workflows.
     """
+    logger.info("Generating learning curves graph...")
+    learning_curves(config)
+
     logger.info("Generating moves distribution graph...")
     moves_distribution(config)
 

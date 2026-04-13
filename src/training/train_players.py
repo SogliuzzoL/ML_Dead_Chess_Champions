@@ -8,8 +8,10 @@ Elo embeddings as fixed (non-trainable) parameters.
 
 The principal entry point is `run_training(config)`, which constructs a
 `PlayerDataset`, configures the Maia model for per-player embedding training,
-and persists the trained embeddings to disk.
+and persists the trained embeddings to disk along with learning curves.
 """
+
+from typing import Dict
 
 import chess
 import polars as pl
@@ -36,24 +38,14 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class PlayerDataset(Dataset):
-    """Dataset providing board tensors and style indices for per-player training.
+    """Dataset providing board tensors and style indices for per-player training."""
 
-    Each item yielded by this dataset is a tuple
-    (board_tensor, active_player_idx, opponent_idx, move_label) suitable for
-    training Maia's policy head. Player indices for project-specific players
-    are offset so they do not collide with Maia's internal Elo-category indices.
-
-    Parameters
-    ----------
-    data_path : str
-        Path to a Parquet file containing the move-level dataset.
-    player_dict : dict
-        Mapping from remote player identifiers to human-readable player names.
-    all_moves_dict : dict
-        Mapping from UCI move strings to integer labels used by Maia.
-    """
-
-    def __init__(self, data_path: str, player_dict: dict, all_moves_dict: dict):
+    def __init__(
+        self,
+        data_path: str,
+        player_dict: Dict[str, str],
+        all_moves_dict: Dict[str, int],
+    ):
         self.df = pl.read_parquet(data_path)
         self.player_dict = player_dict
         self.all_moves_dict = all_moves_dict
@@ -69,7 +61,6 @@ class PlayerDataset(Dataset):
         return len(self.df)
 
     def __getitem__(self, idx: int):
-        """Return a single training example."""
         row = self.df.row(idx, named=True)
         board = chess.Board(row["fen"])
         move_uci = row["move"]
@@ -94,18 +85,7 @@ class PlayerDataset(Dataset):
 
 
 def run_training(config: Config) -> None:
-    """Train project-specific per-player embeddings using a frozen Maia backbone.
-
-    The routine loads the pretrained Maia backbone, attaches a `PlayerStyleEmbedding`
-    instance (initialised from Maia's highest-index Elo vector), and trains only
-    the per-player embedding matrix. Trained parameters are persisted to the path
-    defined in the configuration.
-
-    Parameters
-    ----------
-    config : Config
-        Application configuration providing training hyperparameters and paths.
-    """
+    """Train project-specific per-player embeddings using a frozen Maia backbone."""
     epochs = config.player_training.epochs
     batch_size = config.player_training.batch_size
     lr = config.player_training.learning_rate
@@ -119,10 +99,22 @@ def run_training(config: Config) -> None:
     all_moves = get_all_possible_moves()
     all_moves_dict = {move: i for i, move in enumerate(all_moves)}
 
-    dataset = PlayerDataset(
+    # Chargement des Datasets
+    logger.info("Chargement des datasets (Train et Test)...")
+    train_dataset = PlayerDataset(
         config.paths.train_set_path, config.data.players, all_moves_dict
     )
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+    test_dataset = PlayerDataset(
+        config.paths.test_set_path, config.data.players, all_moves_dict
+    )
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=4
+    )
+    # Batch size plus grand pour le test car pas de gradient à stocker (accélère l'évaluation)
+    test_loader = DataLoader(
+        test_dataset, batch_size=batch_size * 2, shuffle=False, num_workers=4
+    )
 
     maia_model.requires_grad_(False)
     maia_model.elo_embedding.players_embeddings.weight.requires_grad = True
@@ -133,21 +125,36 @@ def run_training(config: Config) -> None:
     logger.info(
         f"Commencing per-player embedding training for {epochs} epochs, batch_size={batch_size}, lr={lr}"
     )
+
+    # Listes pour stocker les métriques
+    history_train_loss = []
+    history_train_acc = []
+    history_test_acc = []
+
     pbar_epochs = tqdm(range(epochs), desc="Epochs", unit="epoch")
 
     for epoch in pbar_epochs:
+        # ==========================================================
+        # 1. PHASE D'ENTRAÎNEMENT
+        # ==========================================================
         maia_model.train()
         epoch_loss = 0.0
+        train_correct = 0
+        train_total = 0
+
         pbar_batches = tqdm(
-            loader, desc=f"Epoch {epoch + 1}/{epochs}", leave=False, unit="batch"
+            train_loader,
+            desc=f"Epoch {epoch + 1}/{epochs} [Train]",
+            leave=False,
+            unit="batch",
         )
 
         for boards, active_ids, opponent_ids, labels in pbar_batches:
             boards, active_ids, opponent_ids, labels = (
-                boards.to(DEVICE),
-                active_ids.to(DEVICE),
-                opponent_ids.to(DEVICE),
-                labels.to(DEVICE),
+                boards.to(DEVICE, non_blocking=True),
+                active_ids.to(DEVICE, non_blocking=True),
+                opponent_ids.to(DEVICE, non_blocking=True),
+                labels.to(DEVICE, non_blocking=True),
             )
 
             logits_maia, _, _ = maia_model(boards, active_ids, opponent_ids)
@@ -157,20 +164,82 @@ def run_training(config: Config) -> None:
             loss.backward()
             optimizer.step()
 
+            # Métriques : Loss
             current_loss = loss.item()
             epoch_loss += current_loss
+
+            # Métriques : Accuracy Train
+            preds = logits_maia.argmax(dim=-1)
+            train_correct += (preds == labels).sum().item()
+            train_total += labels.size(0)
+
             pbar_batches.set_postfix({"batch_loss": f"{current_loss:.4f}"})
 
-        avg_loss = epoch_loss / len(loader)
-        pbar_epochs.set_postfix({"avg_loss": f"{avg_loss:.4f}"})
-        logger.info(
-            f"Completed epoch {epoch + 1}/{epochs} | Average loss: {avg_loss:.4f}"
+        avg_loss = epoch_loss / len(train_loader)
+        train_acc = train_correct / train_total
+
+        # ==========================================================
+        # 2. PHASE D'ÉVALUATION (TEST SET)
+        # ==========================================================
+        maia_model.eval()
+        test_correct = 0
+        test_total = 0
+
+        with torch.no_grad():
+            for boards, active_ids, opponent_ids, labels in test_loader:
+                boards, active_ids, opponent_ids, labels = (
+                    boards.to(DEVICE, non_blocking=True),
+                    active_ids.to(DEVICE, non_blocking=True),
+                    opponent_ids.to(DEVICE, non_blocking=True),
+                    labels.to(DEVICE, non_blocking=True),
+                )
+
+                logits_maia, _, _ = maia_model(boards, active_ids, opponent_ids)
+                preds = logits_maia.argmax(dim=-1)
+                test_correct += (preds == labels).sum().item()
+                test_total += labels.size(0)
+
+        test_acc = test_correct / test_total
+
+        # ==========================================================
+        # 3. SAUVEGARDE DES MÉTRIQUES
+        # ==========================================================
+        history_train_loss.append(avg_loss)
+        history_train_acc.append(train_acc)
+        history_test_acc.append(test_acc)
+
+        pbar_epochs.set_postfix(
+            {
+                "loss": f"{avg_loss:.4f}",
+                "train_acc": f"{train_acc:.4f}",
+                "test_acc": f"{test_acc:.4f}",
+            }
         )
 
+        logger.info(
+            f"Epoch {epoch + 1}/{epochs} | Loss: {avg_loss:.4f} | Train Acc: {train_acc:.4f} | Test Acc: {test_acc:.4f}"
+        )
+
+    # ==========================================================
+    # 4. SAUVEGARDE DES RÉSULTATS
+    # ==========================================================
+    # Sauvegarde des poids
     torch.save(
         maia_model.elo_embedding.players_embeddings.state_dict(),
         config.paths.champions_embeddings_path,
     )
-    logger.info(
-        f"Per-player embedding model saved to {config.paths.champions_embeddings_path}"
+    logger.info(f"Modèle sauvegardé dans {config.paths.champions_embeddings_path}")
+
+    # Sauvegarde de l'historique dans un Parquet
+    df_history = pl.DataFrame(
+        {
+            "epoch": list(range(1, epochs + 1)),
+            "train_loss": history_train_loss,
+            "train_accuracy": history_train_acc,
+            "test_accuracy": history_test_acc,
+        }
     )
+
+    history_path = config.paths.learning_curves_path
+    df_history.write_parquet(str(history_path))
+    logger.info(f"Historique d'entraînement sauvegardé dans {history_path}")
