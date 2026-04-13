@@ -145,7 +145,7 @@ class PlayerTrainingConfig(BaseModel):
 
     epochs: int = 50
     batch_size: int = 128
-    learning_rate: float = 5e-4
+    learning_rate: float = 1e-4
 
 
 class UMAPConfig(BaseModel):
