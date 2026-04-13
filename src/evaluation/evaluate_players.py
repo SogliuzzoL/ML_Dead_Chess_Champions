@@ -6,6 +6,14 @@ conditioned on learned per-player embeddings, against a baseline Maia model
 and a Custom model augmented with Monte Carlo Tree Search (MCTS).
 """
 
+import os
+
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 import json
 import math
 import multiprocessing as mp
@@ -227,8 +235,8 @@ def generate_predictions_parquet(
     fens_list = df_test["fen"].to_list()
     players_list = df_test["player_name"].to_list()
 
-    num_workers = 4
-    worker_batch_size = 512
+    num_workers = 32
+    worker_batch_size = 256
 
     # Découpage du dataset avec attribution d'un worker_id
     chunk_size = math.ceil(len(fens_list) / num_workers)
