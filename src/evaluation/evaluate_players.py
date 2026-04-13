@@ -227,7 +227,7 @@ def generate_predictions_parquet(
     fens_list = df_test["fen"].to_list()
     players_list = df_test["player_name"].to_list()
 
-    num_workers = 30
+    num_workers = 16
     worker_batch_size = 512
 
     # Découpage du dataset avec attribution d'un worker_id
