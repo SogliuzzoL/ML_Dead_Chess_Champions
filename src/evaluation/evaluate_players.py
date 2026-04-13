@@ -235,7 +235,7 @@ def generate_predictions_parquet(
     fens_list = df_test["fen"].to_list()
     players_list = df_test["player_name"].to_list()
 
-    num_workers = 32
+    num_workers = 24
     worker_batch_size = 256
 
     # Découpage du dataset avec attribution d'un worker_id
@@ -300,7 +300,7 @@ def generate_predictions_parquet(
 
 
 def evaluate_players(
-    config: Config, force_train: bool = False, num_mcts_simulations: int = 1000
+    config: Config, force_train: bool = False, num_mcts_simulations: int = 100
 ) -> None:
     """Evaluate per-player predictive accuracy and JSD comparing Baseline, Custom and MCTS.
 
