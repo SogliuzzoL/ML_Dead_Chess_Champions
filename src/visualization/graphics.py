@@ -359,7 +359,7 @@ def learning_curves(config: Config) -> None:
     1. Cross-Entropy Loss on the training set.
     2. Predictive Accuracy on both the training and test sets.
     """
-    history_path = Path(config.paths.evaluation_dir) / "learning_curves.parquet"
+    history_path = config.paths.learning_curves_path
     df = _safe_read_parquet(str(history_path))
 
     if df is None:

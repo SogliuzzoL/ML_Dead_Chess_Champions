@@ -24,6 +24,7 @@ def main():
             "train_players",
             "evaluate_players",
             "tournament",
+            "results",
             "ui",
             "visualize",
         ],
@@ -156,6 +157,12 @@ def main():
             raise ValueError(f"Unknown tournament format: {args.tournament}")
 
         tournament.run_tournament()
+
+    if args.step == "results":
+        from src.evaluation.compute_acc import compute_accuracy
+
+        logger.info("Computing final accuracy metrics and results...")
+        compute_accuracy(config)
 
     if args.step == "ui":
         from src.ui.app import run_ui
