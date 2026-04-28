@@ -62,7 +62,7 @@ class PathsConfig(BaseModel):
     )
     predictions_path: str = "results/evaluation/predictions.parquet"
     accuracy_path: str = "results/evaluation/accuracy.parquet"
-    accuracy_table_latex_path = "results/graphics/accuracy_table.tex"
+    accuracy_table_latex_path: str = "results/graphics/accuracy_table.tex"
 
     moves_distribution_graph_path: str = "results/graphics/moves_distribution.pdf"
     jsd_heatmap_path: str = "results/graphics/jsd_heatmap.pdf"

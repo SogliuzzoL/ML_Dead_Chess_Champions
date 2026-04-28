@@ -23,6 +23,7 @@ def main():
             "evaluate",
             "train_players",
             "evaluate_players",
+            "evaluate_mcts_params",
             "tournament",
             "results",
             "ui",
@@ -118,6 +119,12 @@ def main():
 
         logger.info("Commencing player evaluation and comparison routine...")
         evaluate_players(config, force_train=False)
+
+    if args.step == "evaluate_mcts_params":
+        from src.evaluation.evaluate_mcts_params import evaluate_mcts_params
+
+        logger.info("Commencing MCTS parameters grid search and evaluation...")
+        evaluate_mcts_params(config)
 
     if args.step == "tournament":
         import numpy as np

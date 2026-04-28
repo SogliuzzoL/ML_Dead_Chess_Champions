@@ -30,7 +30,7 @@ echo " Nœud             : $SLURM_JOB_NODELIST"
 echo "=========================================================="
 
 echo "Lancement de l'évaluation ..."
-uv run main.py evaluate_players
+uv run main.py evaluate_mcts_params
 
 echo "=========================================================="
 echo " JOB TERMINÉ : $(date)"
