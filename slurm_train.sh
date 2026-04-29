@@ -17,7 +17,19 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 # Redirection du cache vers le Global Scratch
 export UV_CACHE_DIR="$GLOBALSCRATCH/.cache/uv"
 
-# Chargement de l'environnement CUDA
+# Set threading/env vars early so child processes inherit them
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+# Disable jemalloc background threads
+export MALLOC_CONF="background_thread:false"
+
+# (Optionnel) augmenter la limite de processus si ton admin/cluster l'autorise
+# ulimit -u 4096
+
+# Chargement de l'environnement CUDA (préciser version si nécessaire)
 module purge
 module load CUDA
 
