@@ -6,6 +6,14 @@ subsample of the test set for combinations of `num_simulations`, `c_puct` and
 summary parquet with accuracy statistics.
 """
 
+import os
+
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 import json
 import math
 import multiprocessing as mp
