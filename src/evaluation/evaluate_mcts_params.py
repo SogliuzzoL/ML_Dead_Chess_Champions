@@ -8,11 +8,15 @@ summary parquet with accuracy statistics.
 
 import os
 
+# Force common BLAS/parallel libs to use a single thread to avoid over-subscribing
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
+# Disable jemalloc background threads which can fail to spawn on some clusters
+# (jemalloc reads MALLOC_CONF at process start)
+os.environ["MALLOC_CONF"] = "background_thread:false"
 
 import json
 import math
@@ -80,7 +84,7 @@ def mcts_worker_params(
 def evaluate_mcts_params(
     config: Config,
     subsample_frac: float = 0.05,
-    num_workers: int = 8,
+    num_workers: int = 2,
     batch_size: int = 256,
     param_grid: dict | None = None,
     output_prefix: str = "mcts_grid",
@@ -127,6 +131,10 @@ def evaluate_mcts_params(
     players_list = df_sub["player_name"].to_list()
     true_moves = df_sub["move"].to_list()
 
+    # Cap num_workers to reasonable values to avoid hitting system thread/process limits
+    available_cpus = mp.cpu_count()
+    num_workers = max(1, min(int(num_workers), available_cpus, 4))
+
     # Build chunks for workers
     chunk_size = math.ceil(len(fens_list) / num_workers)
     chunks = []
@@ -138,6 +146,9 @@ def evaluate_mcts_params(
         w_id += 1
 
     results = []
+
+    # Path for summary (will be created/overwritten during the grid search)
+    summary_path = eval_dir / f"{output_prefix}_summary.parquet"
 
     total_runs = (
         len(param_grid["num_simulations"])
