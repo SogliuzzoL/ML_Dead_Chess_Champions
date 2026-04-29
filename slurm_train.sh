@@ -4,8 +4,8 @@
 #SBATCH --error=logs/job_%j.err
 #SBATCH --partition=batch          # La partition correcte pour Lyra
 #SBATCH --gpus=1                   # Une GPU par nœud sur Lyra
-#SBATCH --cpus-per-task=24         # 24 cœurs CPU pour le multi-processing MCTS
-#SBATCH --mem=100G                 # 100 Go de RAM
+#SBATCH --cpus-per-task=4          # 4 cœurs CPU pour le multi-processing MCTS
+#SBATCH --mem=32G                  # 32 Go de RAM
 #SBATCH --time=4-00:00:00
 
 # Se placer dans le dossier du projet
