@@ -23,6 +23,11 @@ paths:
   moves_distribution_graph_path: "results/graphics/moves_distribution.pdf"
   jsd_heatmap_path: "results/graphics/jsd_heatmap.pdf"
   jsd_stability_heatmap_path: "results/graphics/jsd_stability_heatmap.pdf"
+  # Templates for method-specific outputs (these can be overridden)
+  method_jsd_heatmap_template: "results/graphics/jsd_heatmap_{method}.pdf"
+  method_jsd_stability_template: "results/graphics/jsd_stability_heatmap_{method}.pdf"
+  method_train_embeddings_template: "data/processed/train_{method}.parquet"
+  method_test_embeddings_template: "data/processed/test_{method}.parquet"
   table_latex_path: "results/graphics/dataset_table.tex"
   ae_table_latex_path: "results/graphics/autoencoder_table.tex"
   learning_curves_path: "results/evaluation/learning_curves.parquet"

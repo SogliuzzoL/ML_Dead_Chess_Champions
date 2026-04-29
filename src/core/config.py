@@ -64,11 +64,22 @@ class PathsConfig(BaseModel):
     accuracy_path: str = "results/evaluation/accuracy.parquet"
     accuracy_table_latex_path: str = "results/graphics/accuracy_table.tex"
 
+    # Graphics paths (per-method variants will be constructed from these base names)
     moves_distribution_graph_path: str = "results/graphics/moves_distribution.pdf"
     jsd_heatmap_path: str = "results/graphics/jsd_heatmap.pdf"
     jsd_stability_heatmap_path: str = "results/graphics/jsd_stability_heatmap.pdf"
+
+    # New configurable templates for method-specific outputs and embeddings
+    method_jsd_heatmap_template: str = "results/graphics/jsd_heatmap_{method}.pdf"
+    method_jsd_stability_template: str = (
+        "results/graphics/jsd_stability_heatmap_{method}.pdf"
+    )
+    method_train_embeddings_template: str = "data/processed/train_{method}.parquet"
+    method_test_embeddings_template: str = "data/processed/test_{method}.parquet"
+
     table_latex_path: str = "results/graphics/dataset_table.tex"
     ae_table_latex_path: str = "results/graphics/autoencoder_table.tex"
+    jsd_table_latex_path: str = "results/graphics/jsd_stability_table.tex"
 
     def make_directories(self) -> None:
         """Ensure all configured filesystem paths exist on disk.

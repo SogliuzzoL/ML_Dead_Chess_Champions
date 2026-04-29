@@ -170,6 +170,23 @@ def jsd_heatmap(config: Config) -> None:
         )
         return
 
+    # If the distances parquet exists but is empty, skip plotting
+    try:
+        if df.height == 0:
+            logger.warning(
+                "JSD heatmap aborted: distances file %s is empty. Run evaluation first.",
+                distances_path,
+            )
+            return
+    except Exception:
+        # Defensive: if df doesn't implement height, convert to pandas
+        if df.to_pandas().empty:
+            logger.warning(
+                "JSD heatmap aborted: distances file %s appears empty. Run evaluation first.",
+                distances_path,
+            )
+            return
+
     # Build the full square matrix (symmetric) for plotting
     matrix_df = _to_ordered_square_matrix(
         df, p1_col="p1", p2_col="p2", value_col="distance"
@@ -436,8 +453,59 @@ def generate_all_graphics(config: Config) -> None:
     logger.info("Generating moves distribution graph...")
     moves_distribution(config)
 
-    logger.info("Generating JSD heatmap (Test set only)...")
-    jsd_heatmap(config)
+    # Generate method-specific JSD and stability heatmaps (uses templates in config.paths)
+    logger.info("Generating JSD and stability heatmaps for configured methods...")
+    generate_model_graphics(config)
 
-    logger.info("Generating Stability comparison heatmap (Train vs Test)...")
-    stability_heatmap(config)
+
+def generate_model_graphics(config: Config, methods: list | None = None) -> None:
+    """
+    Generate JSD heatmaps and stability heatmaps for a list of embedding methods.
+
+    Parameters
+    ----------
+    config : Config
+        Project configuration object. The function temporarily adjusts output
+        paths so that figures for each method are written to distinct files
+        named with the method suffix (e.g. `jsd_heatmap_maia2.pdf`).
+    methods : list | None
+        If omitted the function will default to a reasonable set covering both
+        the installed pipeline (`umap`) and the Maia variants we produce
+        (`maia2`, `maia2_ft`, `maia2_ft_mcts`). You can pass any method name that
+        matches the naming convention used in the `data/processed` parquet files
+        (train_{method}.parquet / test_{method}.parquet).
+    """
+    if methods is None:
+        methods = ["umap", "maia2", "maia2_ft", "maia2_ft_mcts"]
+
+    # Preserve originals
+    orig_jsd_path = config.paths.jsd_heatmap_path
+    orig_stab_path = config.paths.jsd_stability_heatmap_path
+    orig_method = config.jsd.method
+
+    for method in methods:
+        logger.info("Generating graphics for method: %s", method)
+
+        # Adjust config to point to this method and set method-specific output paths from templates
+        config.jsd.method = method
+        jsd_out = config.paths.method_jsd_heatmap_template.format(method=method)
+        stab_out = config.paths.method_jsd_stability_template.format(method=method)
+
+        # Temporarily override the output paths used by plotting functions
+        config.paths.jsd_heatmap_path = jsd_out
+        config.paths.jsd_stability_heatmap_path = stab_out
+
+        try:
+            jsd_heatmap(config)
+        except Exception as exc:
+            logger.error("Failed to generate JSD heatmap for %s: %s", method, exc)
+
+        try:
+            stability_heatmap(config)
+        except Exception as exc:
+            logger.error("Failed to generate stability heatmap for %s: %s", method, exc)
+
+    # Restore originals
+    config.paths.jsd_heatmap_path = orig_jsd_path
+    config.paths.jsd_stability_heatmap_path = orig_stab_path
+    config.jsd.method = orig_method

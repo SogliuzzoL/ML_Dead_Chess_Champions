@@ -167,9 +167,13 @@ def main():
 
     if args.step == "results":
         from src.evaluation.compute_acc import compute_accuracy
+        from src.evaluation.compute_model_jsd import run_model_jsd_pipeline
 
         logger.info("Computing final accuracy metrics and results...")
         compute_accuracy(config)
+
+        logger.info("Computing AE->UMAP->JSD for Maia variants...")
+        run_model_jsd_pipeline(config)
 
     if args.step == "ui":
         from src.ui.app import run_ui
@@ -178,12 +182,18 @@ def main():
         run_ui(config)
 
     if args.step == "visualize":
-        from src.visualization.graphics import generate_all_graphics
+        from src.visualization.graphics import (
+            generate_all_graphics,
+            generate_model_graphics,
+        )
         from src.visualization.tables import generate_all_tables
 
         logger.info("Generating all visualizations and graphics...")
         generate_all_tables(config)
         generate_all_graphics(config)
+
+        logger.info("Generating method-specific graphics (UMAP / Maia variants)...")
+        generate_model_graphics(config)
 
 
 if __name__ == "__main__":

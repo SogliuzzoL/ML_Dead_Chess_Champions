@@ -18,49 +18,39 @@ The pipeline is orchestrated through the command-line entry point `main.py`. Ind
 - `stats` — Extract opening (ECO) statistics from PGN headers and persist them.
 - `vectors` — Convert (FEN, move) pairs into fixed-size vectors and save train/test `.npy` arrays.
 - `autoencoder` — Train the autoencoder on training vectors and encode train/test into latent vectors.
-- `umap` — Fit UMAP on training latent vectors and transform test latent vectors.
+- `umap` — Fit UMAP on training latent vectors and transform test latent vectors (or apply an existing UMAP model).
 - `evaluate` — Compute pairwise and cross-split Jensen–Shannon distances for a given method.
+- `results` — Convenience pipeline that builds AE -> UMAP -> JSD for model-generated embeddings (Maia variants) and writes evaluation artifacts.
+- `visualize` — Generate publication-ready graphics and LaTeX tables (includes per-method heatmaps and a JSD stability table).
 
 ## Quick start: example invocations
 Run an individual pipeline step via the CLI. The following examples illustrate standard usages.
 
-```/dev/null/usage.sh#L1-6
-python main.py vectors --config config/default.yml
-```
+Create position vectors (FEN->vector):
 
-Train the autoencoder, derive UMAP embeddings, and evaluate:
+    python main.py vectors --config config/default.yml
 
-```/dev/null/usage.sh#L1-8
-python main.py autoencoder --config config/default.yml
-python main.py umap --config config/default.yml
-python main.py evaluate --config config/default.yml --method umap
-```
+Train the autoencoder, derive UMAP embeddings, and evaluate UMAP-based JSD:
 
-For the umap it's recommended to use cuML
-```
-python -m cuml.accel main.py umap
-```
+    python main.py autoencoder --config config/default.yml
+    python main.py umap --config config/default.yml
+    python main.py evaluate --config config/default.yml --method umap
+
+If you already have a trained UMAP model (serialized) and only want to transform the test latents, use the `umap` step which will load the serialized model and apply it to the test latents.
+
+To compute the AE -> UMAP -> JSD pipeline for the Maia variants (Maia-2, Maia-2 FT, Maia-2 FT + MCTS) and save the evaluation artifacts, run:
+
+    python main.py results --config config/default.yml
+
+To generate all visuals and LaTeX tables (including a per-method JSD heatmap and a per-player JSD stability table):
+
+    python main.py visualize --config config/default.yml
+
+Notes:
+- Generating predictions with MCTS (if required) can be computationally expensive; adjust `num_simulations` when calling the evaluation utilities if you want a quicker run for testing.
 
 ## Configuration
 All runtime parameters and filesystem paths are centralised in a Pydantic `Config` model defined within `src/core/config.py`. The pipeline reads configuration overrides from a YAML file (default path: `config/default.yml`) when present; otherwise, it employs sensible defaults. The `Config.from_yaml(path)` helper performs validation and creates the required directory layout.
-
-A minimal illustrative YAML fragment (example only — adapt to your environment):
-
-```/dev/null/config.yml#L1-12
-paths:
-  raw_data: "data/raw/"
-  dataset_path: "data/processed/dataset.parquet"
-data:
-  max_workers: 8
-  players:
-    "19233": "Fischer"
-    "15940": "Kasparov"
-autoencoder:
-  latent_dim: 128
-  epochs: 20
-umap:
-  n_components: 2
-```
 
 ## Input and Output Artifacts
 - Input
@@ -74,14 +64,21 @@ umap:
   - Autoencoder state dict: `paths.autoencoder_model_path` (.pth).
   - Serialized UMAP instance: `paths.umap_model_path` (.pkl).
   - UMAP 2D coordinates: `paths.train_umap_result_path`, `paths.test_umap_result_path` (Parquet).
+  - Method-specific embeddings (generated from model predictions): `paths.method_train_embeddings_template` / `paths.method_test_embeddings_template` (Parquet).
 - Evaluation artifacts
-  - Pairwise and cross-split Jensen–Shannon distance tables: written under `results/evaluation/` as Parquet.
+  - Pairwise and cross-split Jensen–Shannon distance tables: written under `paths.evaluation_dir` as Parquet. Filenames follow the convention `distances_{split}_{method}.parquet`, `cross_distances_{method}.parquet`, and `full_cross_distances_{method}.parquet`.
+
+## Visualization and LaTeX tables
+- `python main.py visualize` now generates:
+  - Learning curves and moves distribution graphs.
+  - JSD heatmaps and asymmetric stability heatmaps for each configured method (UMAP and Maia variants) using the templates defined in `config`.
+  - A LaTeX table summarising per-player train-vs-test JSD (diagonal), with deltas of each Maia method relative to the TEST reference (UMAP). The table is saved to `paths.jsd_table_latex_path`.
 
 ## Implementation notes and assumptions
 - Position-to-vector conversion
   - Each (FEN, move) pair is converted by encoding the board state immediately before and after the move and concatenating these encodings into a single flattened vector. See `src/features/umap.py` for the deterministic conversion routine.
 - Autoencoder
-  - The autoencoder decoder concludes with a `Sigmoid` activation and the training loss is currently binary cross-entropy (BCE). This design presumes input vectors are normalised to the [0, 1] interval. If the input vectors are not scaled to [0, 1], the current architecture and loss may be inappropriate; consider using an identity output with mean-squared error (MSE) as an alternative.
+  - The autoencoder decoder concludes with a `Sigmoid` activation and the training loss is currently binary cross-entropy (BCE). This design presumes input vectors are normalised to the [0, 1] interval. If the input vectors are not scaled to [0, 1], the current architecture and loss may be inappropriate; consider using an identity output with mean-squared error (MSE) as an alternative; or normalise inputs before training/inference.
 - UMAP
   - A thin `StyleUMAP` wrapper around `umap.UMAP` is provided with `save_model` and `load_model` helpers. The loader is implemented to allow deserialization without requiring a pre-existing instance.
 - Evaluation
@@ -104,3 +101,6 @@ umap:
 - `src/training/train_autoencoder.py` — Training and encoding utilities for the autoencoder.
 - `src/training/train_umap.py` — UMAP fitting and transformation workflow utilities.
 - `src/evaluation/compute_distances.py` — Jensen–Shannon-based evaluation routines.
+- `src/evaluation/compute_model_jsd.py` — AE->UMAP->JSD pipeline for model-generated embeddings (Maia variants).
+- `src/visualization/graphics.py` — Graphics generation (heatmaps, stability plots, distribution plots).
+- `src/visualization/tables.py` — LaTeX table generation (dataset, AE, accuracies, JSD stability table).

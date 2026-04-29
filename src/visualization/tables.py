@@ -207,9 +207,103 @@ def generate_training_hyperparameters_latex_table(config: Config) -> None:
     )
 
 
+def generate_jsd_stability_table(config: Config) -> None:
+    """Generate a LaTeX table with per-player diagonal JSD and deltas vs the Test set.
+
+    The table will have columns: Player | TEST (reference) | MAIA-2 | MAIA-2 FT | MAIA-2 FT + MCTS.
+    For each Maia column the value is formatted as: "value (±delta)" where delta = method - TEST.
+    """
+
+    methods = ["maia2", "maia2_ft", "maia2_ft_mcts"]
+    reference = "umap"  # the TEST reference comes from the UMAP method's train-vs-test distances
+
+    # Load reference test distances (prefer cross_distances, fallback to full_cross diagonal)
+    def _load_diag(method_name: str) -> dict:
+        # Try cross distances first
+        try:
+            p = config.paths.get_cross_distances_path(method_name, config.jsd.kde)
+            df = pl.read_parquet(p)
+            if df is not None and df.height > 0:
+                return {r["player"]: r["distance"] for r in df.iter_rows(named=True)}
+        except Exception:
+            pass
+        # Fallback to full cross matrix diagonal
+        try:
+            p = config.paths.get_full_cross_matrix_path(method_name, config.jsd.kde)
+            df = pl.read_parquet(p)
+            if df is not None and df.height > 0:
+                diag = df.filter(pl.col("p_train") == pl.col("p_test"))
+                return {r["p_train"]: r["distance"] for r in diag.iter_rows(named=True)}
+        except Exception:
+            pass
+        return {}
+
+    ref_vals = _load_diag(reference)
+
+    # Load method values
+    method_vals = {m: _load_diag(m) for m in methods}
+
+    # Determine players order: prefer reference order, else union across methods, else config.players
+    if ref_vals:
+        players_order = list(ref_vals.keys())
+    else:
+        union_players = set()
+        for d in method_vals.values():
+            union_players.update(d.keys())
+        if union_players:
+            players_order = sorted(union_players)
+        else:
+            players_order = list(config.data.players.values())
+
+    # Build LaTeX rows
+    latex_rows = []
+    for player in players_order:
+        ref = ref_vals.get(player, float("nan"))
+        # Format reference
+        ref_str = f"{ref:.3f}" if ref == ref else "N/A"
+
+        cols = [ref_str]
+        for m in methods:
+            v = method_vals[m].get(player, float("nan"))
+            if v == v and ref == ref:
+                delta = v - ref
+                cols.append(f"{v:.3f} ({delta:+.3f})")
+            elif v == v:
+                cols.append(f"{v:.3f} (N/A)")
+            else:
+                cols.append("N/A (N/A)")
+
+        latex_rows.append(f"{player} & {' & '.join(cols)} \\")
+
+    header = " & ".join(
+        ["Player", "TEST"] + ["MAIA-2", "MAIA-2 FT", "MAIA-2 FT + MCTS"]
+    )
+    table_body = "\n".join(["                         " + r for r in latex_rows])
+
+    latex_template = f"""\\begin{{table}}[!t]
+                         \\renewcommand{{\\arraystretch}}{{1.3}}
+                         \\caption{{Train/Test Jensen-Shannon distances per player (diagonal) and deltas vs TEST.}}
+                         \\label{{tab:jsd_stability}}
+                         \\centering
+                         \\begin{{tabular}}{{l c c c c}}
+                         \\hline
+                         \\bfseries {header} \\\\n                         \\hline\\hline
+{table_body}
+                         \\hline
+                         \\end{{tabular}}
+                         \\end{{table}}"""
+
+    out_path = config.paths.jsd_table_latex_path
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(latex_template)
+
+    logger.info("JSD stability LaTeX table saved to %s", out_path)
+
+
 def generate_all_tables(config: Config) -> None:
     """Generate all LaTeX tables for the paper."""
     generate_ae_latex_table(config)
     generate_latex_table(config)
     generate_training_hyperparameters_latex_table(config)
     generate_accuracy_latex_table(config)
+    generate_jsd_stability_table(config)
