@@ -114,7 +114,7 @@ def build_and_save_model_umap_for_variant(
             if mv is None:
                 # placeholder: create a zero vector if prediction missing
                 # this will produce a point but will be ignored later if needed
-                vec = torch.zeros(1)
+                vec = torch.tensor([0.0])
             else:
                 try:
                     vec = position_to_vector(fen, mv)
@@ -122,7 +122,7 @@ def build_and_save_model_umap_for_variant(
                     # If position/move invalid, fallback to a zero vector of correct dim
                     # we create from test_vectors shape
                     sample = np.load(config.paths.test_vectors_path, mmap_mode="r")
-                    vec = torch.from_numpy(sample[0]).float()
+                    vec = torch.as_tensor(sample[0]).float()
             tensors.append(vec.float())
 
         # Stack into tensor of shape (B, input_dim)

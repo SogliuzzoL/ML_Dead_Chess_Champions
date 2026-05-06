@@ -368,6 +368,72 @@ def stability_heatmap(config: Config) -> None:
     plt.close(fig)
 
 
+def stability_heatmap_real_vs_pred(config: Config) -> None:
+    """
+    Generate a swapped-stability heatmap where rows represent REAL (test) players
+    and columns represent PREDICTED (model/train) players.
+
+    This reads the same full cross-matrix parquet that `stability_heatmap` uses
+    but pivots it with index=`p_test` and columns=`p_train` to present the
+    requested orientation (Real vs Predicted).
+    """
+    method = config.jsd.method
+    kde = config.jsd.kde
+
+    input_path = config.paths.get_full_cross_matrix_path(method, kde)
+    df = _safe_read_parquet(input_path)
+    if df is None:
+        logger.error(
+            "Real-vs-Pred stability heatmap aborted: input file missing (%s). Please run evaluation first.",
+            input_path,
+        )
+        return
+
+    # Determine ordering from test player column to keep the diagonal aligned when possible
+    try:
+        players_ordered = (
+            df.select("p_test").unique().sort("p_test").to_series().to_list()
+        )
+    except Exception:  # pragma: no cover - defensive fallback
+        players_ordered = None
+
+    # Pivot so rows = p_test (REAL), cols = p_train (PREDICTED)
+    matrix_pd = (
+        df.to_pandas()
+        .pivot(index="p_test", columns="p_train", values="distance")
+        .reindex(index=players_ordered, columns=players_ordered)
+    )
+
+    fig, ax = plt.subplots(figsize=(FIG_WIDTH, HEATMAP_HEIGHT))
+
+    sns.heatmap(
+        matrix_pd,
+        ax=ax,
+        cmap=HEATMAP_CMAP,
+        annot=True,
+        fmt=".4f",
+        annot_kws={"size": 2.2},
+        square=True,
+        linewidths=0.01,
+        linecolor="#CCCCCC",
+        cbar_kws={"label": "Jensen-Shannon Divergence", "shrink": 0.5, "pad": 0.04},
+    )
+
+    # Explicit labels to clarify axes
+    ax.set_xlabel("Predicted (Model) Players", fontsize=6)
+    ax.set_ylabel("Real (Test) Players", fontsize=6)
+
+    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=3.5)
+    plt.setp(ax.get_yticklabels(), rotation=0, fontsize=3.5)
+
+    out_path = config.paths.method_jsd_stability_real_pred_template.format(
+        method=method
+    )
+    _save_figure(fig, out_path)
+    logger.info("Real-vs-Pred stability heatmap saved to %s", out_path)
+    plt.close(fig)
+
+
 def learning_curves(config: Config) -> None:
     """
     Generate learning curves (loss and accuracy) from the training history parquet file.
@@ -490,6 +556,9 @@ def generate_model_graphics(config: Config, methods: list | None = None) -> None
         config.jsd.method = method
         jsd_out = config.paths.method_jsd_heatmap_template.format(method=method)
         stab_out = config.paths.method_jsd_stability_template.format(method=method)
+        stab_realpred_out = config.paths.method_jsd_stability_real_pred_template.format(
+            method=method
+        )
 
         # Temporarily override the output paths used by plotting functions
         config.paths.jsd_heatmap_path = jsd_out
@@ -504,6 +573,21 @@ def generate_model_graphics(config: Config, methods: list | None = None) -> None
             stability_heatmap(config)
         except Exception as exc:
             logger.error("Failed to generate stability heatmap for %s: %s", method, exc)
+
+        # Generate the swapped orientation Real vs Predicted
+        try:
+            # Temporarily set the template location for the real-vs-pred output
+            orig_template = getattr(
+                config.paths, "method_jsd_stability_real_pred_template", None
+            )
+            # Call the new plotting routine
+            stability_heatmap_real_vs_pred(config)
+        except Exception as exc:
+            logger.error(
+                "Failed to generate Real-vs-Pred stability heatmap for %s: %s",
+                method,
+                exc,
+            )
 
     # Restore originals
     config.paths.jsd_heatmap_path = orig_jsd_path

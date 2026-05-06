@@ -74,6 +74,10 @@ class PathsConfig(BaseModel):
     method_jsd_stability_template: str = (
         "results/graphics/jsd_stability_heatmap_{method}.pdf"
     )
+    # Template for a swapped stability heatmap where rows=Real(Test) and cols=Predicted(Model)
+    method_jsd_stability_real_pred_template: str = (
+        "results/graphics/jsd_stability_heatmap_{method}_real_vs_pred.pdf"
+    )
     method_train_embeddings_template: str = "data/processed/train_{method}.parquet"
     method_test_embeddings_template: str = "data/processed/test_{method}.parquet"
 

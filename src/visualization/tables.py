@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import polars as pl
 
 from src.core.config import Config
@@ -208,18 +209,21 @@ def generate_training_hyperparameters_latex_table(config: Config) -> None:
 
 
 def generate_jsd_stability_table(config: Config) -> None:
-    """Generate a LaTeX table with per-player diagonal JSD and deltas vs the Test set.
+    """Generate a LaTeX table with per-player diagonal JSD and deltas vs TEST.
 
-    The table will have columns: Player | TEST (reference) | MAIA-2 | MAIA-2 FT | MAIA-2 FT + MCTS.
-    For each Maia column the value is formatted as: "value (±delta)" where delta = method - TEST.
+    Matches the style of `generate_accuracy_latex_table` so the JSD table is IEEE-ready:
+    - Per-player rows with TEST (reference) and three Maia columns
+    - An "Average" row at the bottom with bolded mean values and deltas
     """
 
     methods = ["maia2", "maia2_ft", "maia2_ft_mcts"]
-    reference = "umap"  # the TEST reference comes from the UMAP method's train-vs-test distances
+    reference = "umap"
 
-    # Load reference test distances (prefer cross_distances, fallback to full_cross diagonal)
+    # Human-readable, title-cased labels to match the accuracy table
+    method_labels = ["Maia-2", "Maia-2 FT", "Maia-2 FT + MCTS"]
+
     def _load_diag(method_name: str) -> dict:
-        # Try cross distances first
+        # Prefer cross distances; fall back to full cross matrix diagonal
         try:
             p = config.paths.get_cross_distances_path(method_name, config.jsd.kde)
             df = pl.read_parquet(p)
@@ -227,7 +231,6 @@ def generate_jsd_stability_table(config: Config) -> None:
                 return {r["player"]: r["distance"] for r in df.iter_rows(named=True)}
         except Exception:
             pass
-        # Fallback to full cross matrix diagonal
         try:
             p = config.paths.get_full_cross_matrix_path(method_name, config.jsd.kde)
             df = pl.read_parquet(p)
@@ -239,59 +242,98 @@ def generate_jsd_stability_table(config: Config) -> None:
         return {}
 
     ref_vals = _load_diag(reference)
-
-    # Load method values
     method_vals = {m: _load_diag(m) for m in methods}
 
-    # Determine players order: prefer reference order, else union across methods, else config.players
+    # Determine player ordering: alphabetical (case-insensitive) for reproducible display
     if ref_vals:
-        players_order = list(ref_vals.keys())
+        players_order = sorted(list(ref_vals.keys()), key=lambda s: s.lower())
     else:
         union_players = set()
         for d in method_vals.values():
             union_players.update(d.keys())
         if union_players:
-            players_order = sorted(union_players)
+            players_order = sorted(union_players, key=lambda s: s.lower())
         else:
-            players_order = list(config.data.players.values())
+            players_order = sorted(
+                list(config.data.players.values()), key=lambda s: s.lower()
+            )
 
-    # Build LaTeX rows
+    # Build table rows
     latex_rows = []
     for player in players_order:
         ref = ref_vals.get(player, float("nan"))
-        # Format reference
-        ref_str = f"{ref:.3f}" if ref == ref else "N/A"
+        # Use two decimals to reduce width for IEEE two-column figures
+        ref_str = f"{ref:.2f}" if ref == ref else "N/A"
 
         cols = [ref_str]
         for m in methods:
             v = method_vals[m].get(player, float("nan"))
             if v == v and ref == ref:
                 delta = v - ref
-                cols.append(f"{v:.3f} ({delta:+.3f})")
+                cols.append(f"{v:.2f} ({delta:+.2f})")
             elif v == v:
-                cols.append(f"{v:.3f} (N/A)")
+                cols.append(f"{v:.2f} (N/A)")
             else:
                 cols.append("N/A (N/A)")
 
-        latex_rows.append(f"{player} & {' & '.join(cols)} \\")
+        row = "                         " + player + " & " + " & ".join(cols) + " \\\\"
+        latex_rows.append(row)
 
-    header = " & ".join(
-        ["Player", "TEST"] + ["MAIA-2", "MAIA-2 FT", "MAIA-2 FT + MCTS"]
+    # Compute averages across the same player order (ignore NaNs)
+    def _mean_for_players(d: dict) -> float:
+        vals = [d.get(p) for p in players_order]
+        nums = [v for v in vals if isinstance(v, (int, float)) and not np.isnan(v)]
+        return float(np.mean(nums)) if nums else float("nan")
+
+    overall_ref = _mean_for_players(ref_vals)
+    overall_methods = {m: _mean_for_players(method_vals[m]) for m in methods}
+
+    # Average row values (formatted) — use 2 decimals to save horizontal space
+    avg_ref_str = f"{overall_ref:.2f}" if overall_ref == overall_ref else "N/A"
+    avg_method_strs = []
+    for m in methods:
+        mv = overall_methods.get(m, float("nan"))
+        if mv == mv and overall_ref == overall_ref:
+            avg_method_strs.append(f"{mv:.2f} ({(mv - overall_ref):+.2f})")
+        elif mv == mv:
+            avg_method_strs.append(f"{mv:.2f} (N/A)")
+        else:
+            avg_method_strs.append("N/A (N/A)")
+
+    # Append average row in bold, matching the accuracy table style
+    latex_rows.append("                         \\hline")
+    avg_row = (
+        "                         \\bfseries Average & \\bfseries "
+        + avg_ref_str
+        + " & \\bfseries "
+        + avg_method_strs[0]
+        + " & \\bfseries "
+        + avg_method_strs[1]
+        + " & \\bfseries "
+        + avg_method_strs[2]
+        + " \\\\"
     )
-    table_body = "\n".join(["                         " + r for r in latex_rows])
+    latex_rows.append(avg_row)
 
-    latex_template = f"""\\begin{{table}}[!t]
-                         \\renewcommand{{\\arraystretch}}{{1.3}}
-                         \\caption{{Train/Test Jensen-Shannon distances per player (diagonal) and deltas vs TEST.}}
-                         \\label{{tab:jsd_stability}}
-                         \\centering
-                         \\begin{{tabular}}{{l c c c c}}
-                         \\hline
-                         \\bfseries {header} \\\\n                         \\hline\\hline
+    # Use human-readable labels for the header
+    header = " & ".join(["Player", "TEST"] + method_labels)
+    table_body = "\n".join(latex_rows)
+
+    # Build LaTeX table using a raw f-string to avoid escape confusion
+    latex_template = rf"""\begin{{table}}[!t]
+\renewcommand{{\arraystretch}}{{1.3}}
+\caption{{Train/Test Jensen-Shannon distances per player (diagonal) and deltas vs TEST.}}
+\label{{tab:jsd_stability}}
+\centering
+\scriptsize
+\begin{{tabular}}{{l c c c c}}
+\hline
+\bfseries {header} \\
+\hline\hline
 {table_body}
-                         \\hline
-                         \\end{{tabular}}
-                         \\end{{table}}"""
+\hline
+\end{{tabular}}
+\end{{table}}"""
 
     out_path = config.paths.jsd_table_latex_path
     with open(out_path, "w", encoding="utf-8") as f:

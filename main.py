@@ -24,6 +24,7 @@ def main():
             "train_players",
             "evaluate_players",
             "evaluate_mcts_params",
+            "generate_mcts_heatmaps",
             "tournament",
             "results",
             "ui",
@@ -125,6 +126,15 @@ def main():
 
         logger.info("Commencing MCTS parameters grid search and evaluation...")
         evaluate_mcts_params(config)
+
+    if args.step == "generate_mcts_heatmaps":
+        from src.evaluation.generate_mcts_heatmaps import (
+            main as generate_mcts_heatmaps_main,
+        )
+
+        logger.info("Generating heatmaps for MCTS grid search results...")
+        # Reuse the helper's CLI entry; pass the config path through argv
+        generate_mcts_heatmaps_main(["--config", args.config])
 
     if args.step == "tournament":
         import numpy as np
