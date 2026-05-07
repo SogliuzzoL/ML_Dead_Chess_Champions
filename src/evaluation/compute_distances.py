@@ -76,7 +76,7 @@ def compute_distances(
     input_path = config.paths.get_embeddings_path(method, is_test)
     output_path = config.paths.get_distances_path(method, is_test, kde)
 
-    logger.info(f"Loading {method.upper()} representations from {input_path}...")
+    logger.info("Loading %s representations from %s...", method.upper(), input_path)
     df = pl.read_parquet(input_path)
 
     cols = _get_dim_columns(df)
@@ -108,7 +108,7 @@ def compute_distances(
         distance_data.append({"p1": p1, "p2": p2, "distance": distance_js})
 
     distance_df = pl.DataFrame(distance_data)
-    logger.info(f"Saving computed distances to {output_path}")
+    logger.info("Saving computed distances to %s", output_path)
     distance_df.write_parquet(output_path)
 
 
@@ -119,7 +119,7 @@ def compute_train_test_distances(config: Config, method: str, kde: bool = True) 
     test_path = config.paths.get_embeddings_path(method, is_test=True)
     output_path = config.paths.get_cross_distances_path(method, kde)
 
-    logger.info(f"Loading training and test representations for {method.upper()}...")
+    logger.info("Loading training and test representations for %s...", method.upper())
     df_train = pl.read_parquet(train_path)
     df_test = pl.read_parquet(test_path)
 
@@ -162,21 +162,23 @@ def compute_train_test_distances(config: Config, method: str, kde: bool = True) 
         distance_data.append({"player": player, "distance": distance_js})
 
     distance_df = pl.DataFrame(distance_data)
-    logger.info(f"Saving cross-split analysis to {output_path}")
+    logger.info("Saving cross-split analysis to %s", output_path)
     distance_df.write_parquet(output_path)
 
 
 def compute_full_cross_matrix(config: Config, method: str, kde: bool = True) -> None:
-    """
-    Calcule la matrice complète et non-symétrique des distances entre
-    tous les joueurs du Train set et tous les joueurs du Test set.
+    """Compute the full asymmetric cross-distance matrix between train and test players.
+
+    This function computes distances for every ordered pair (train_player, test_player)
+    using the specified embedding method and returns a table suitable for heatmap
+    generation and further analysis.
     """
     train_path = config.paths.get_embeddings_path(method, is_test=False)
     test_path = config.paths.get_embeddings_path(method, is_test=True)
 
     output_path = config.paths.get_full_cross_matrix_path(method, kde)
 
-    logger.info(f"Loading representations for full cross-matrix ({method.upper()})...")
+    logger.info("Loading representations for full cross-matrix (%s)...", method.upper())
     df_train = pl.read_parquet(train_path)
     df_test = pl.read_parquet(test_path)
 
@@ -185,7 +187,7 @@ def compute_full_cross_matrix(config: Config, method: str, kde: bool = True) -> 
 
     players = df_train["player_name"].unique().to_list()
 
-    # Détermination des limites globales (comme dans tes autres fonctions)
+    # Determine global boundaries across both train and test sets to ensure identical histogram grids
     global_bounds = [
         [
             min(df_train[cols[0]].min(), df_test[cols[0]].min()),
@@ -197,7 +199,7 @@ def compute_full_cross_matrix(config: Config, method: str, kde: bool = True) -> 
         ],
     ]
 
-    # Double boucle pour la matrice asymétrique complète
+    # Nested iteration to construct the full asymmetric cross-distance matrix
     progress_bar = tqdm.tqdm(players, desc=f"Full Cross-Matrix ({method.upper()})")
 
     for p_train in progress_bar:
@@ -225,5 +227,5 @@ def compute_full_cross_matrix(config: Config, method: str, kde: bool = True) -> 
             )
 
     distance_df = pl.DataFrame(distance_data)
-    logger.info(f"Saving full cross matrix to {output_path}")
+    logger.info("Saving full cross matrix to %s", output_path)
     distance_df.write_parquet(output_path)

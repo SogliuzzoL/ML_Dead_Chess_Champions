@@ -1,3 +1,10 @@
+"""Compute and persist per-player accuracy metrics.
+
+This module reads the predictions parquet produced by the evaluation pipeline,
+computes top-1 accuracy for various prediction methods per player, and writes
+the aggregated accuracy table to disk for downstream reporting.
+"""
+
 import polars as pl
 
 from src.core.config import Config
@@ -6,7 +13,15 @@ from src.core.utils import getLogger
 logger = getLogger()
 
 
-def compute_accuracy(config: Config):
+def compute_accuracy(config: Config) -> None:
+    """Compute and persist per-player accuracy statistics.
+
+    Parameters
+    ----------
+    config : Config
+        Project configuration providing the path to the predictions parquet and
+        the target path for accuracy results.
+    """
     df = pl.read_parquet(config.paths.predictions_path)
 
     df_results = []
@@ -30,4 +45,7 @@ def compute_accuracy(config: Config):
 
     df_results = pl.DataFrame(df_results)
     df_results.write_parquet(config.paths.accuracy_path)
-    logger.info(f"Player accuracies computed and saved to {config.paths.accuracy_path}")
+    logger.info(
+        "Player accuracies have been computed and written to %s",
+        config.paths.accuracy_path,
+    )

@@ -99,8 +99,8 @@ def run_training(config: Config) -> None:
     all_moves = get_all_possible_moves()
     all_moves_dict = {move: i for i, move in enumerate(all_moves)}
 
-    # Chargement des Datasets
-    logger.info("Chargement des datasets (Train et Test)...")
+    # Load training and test datasets
+    logger.info("Loading datasets for training and evaluation (train and test)...")
     train_dataset = PlayerDataset(
         config.paths.train_set_path, config.data.players, all_moves_dict
     )
@@ -111,7 +111,7 @@ def run_training(config: Config) -> None:
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, num_workers=4
     )
-    # Batch size plus grand pour le test car pas de gradient à stocker (accélère l'évaluation)
+    # Use a larger batch size for evaluation to reduce gradient-storage overhead and improve throughput
     test_loader = DataLoader(
         test_dataset, batch_size=batch_size * 2, shuffle=False, num_workers=4
     )
@@ -126,7 +126,7 @@ def run_training(config: Config) -> None:
         f"Commencing per-player embedding training for {epochs} epochs, batch_size={batch_size}, lr={lr}"
     )
 
-    # Listes pour stocker les métriques
+    # Containers for training metrics and evaluation results
     history_train_loss = []
     history_train_acc = []
     history_test_acc = []
@@ -135,7 +135,7 @@ def run_training(config: Config) -> None:
 
     for epoch in pbar_epochs:
         # ==========================================================
-        # 1. PHASE D'ENTRAÎNEMENT
+        # 1. TRAINING PHASE
         # ==========================================================
         maia_model.train()
         epoch_loss = 0.0
@@ -164,11 +164,11 @@ def run_training(config: Config) -> None:
             loss.backward()
             optimizer.step()
 
-            # Métriques : Loss
+            # Metrics: Loss
             current_loss = loss.item()
             epoch_loss += current_loss
 
-            # Métriques : Accuracy Train
+            # Metrics: Training accuracy accumulation
             preds = logits_maia.argmax(dim=-1)
             train_correct += (preds == labels).sum().item()
             train_total += labels.size(0)
@@ -179,7 +179,7 @@ def run_training(config: Config) -> None:
         train_acc = train_correct / train_total
 
         # ==========================================================
-        # 2. PHASE D'ÉVALUATION (TEST SET)
+        # 2. EVALUATION PHASE (TEST SET)
         # ==========================================================
         maia_model.eval()
         test_correct = 0
@@ -202,7 +202,7 @@ def run_training(config: Config) -> None:
         test_acc = test_correct / test_total
 
         # ==========================================================
-        # 3. SAUVEGARDE DES MÉTRIQUES
+        # 3. PERSIST METRICS
         # ==========================================================
         history_train_loss.append(avg_loss)
         history_train_acc.append(train_acc)
@@ -221,16 +221,18 @@ def run_training(config: Config) -> None:
         )
 
     # ==========================================================
-    # 4. SAUVEGARDE DES RÉSULTATS
+    # 4. PERSIST FINAL RESULTS
     # ==========================================================
-    # Sauvegarde des poids
+    # Save learned per-player embeddings
     torch.save(
         maia_model.elo_embedding.players_embeddings.state_dict(),
         config.paths.champions_embeddings_path,
     )
-    logger.info(f"Modèle sauvegardé dans {config.paths.champions_embeddings_path}")
+    logger.info(
+        "Player embedding model saved to %s", config.paths.champions_embeddings_path
+    )
 
-    # Sauvegarde de l'historique dans un Parquet
+    # Persist training history to a Parquet file for later analysis
     df_history = pl.DataFrame(
         {
             "epoch": list(range(1, epochs + 1)),
@@ -242,4 +244,4 @@ def run_training(config: Config) -> None:
 
     history_path = config.paths.learning_curves_path
     df_history.write_parquet(str(history_path))
-    logger.info(f"Historique d'entraînement sauvegardé dans {history_path}")
+    logger.info("Training history persisted to %s", history_path)

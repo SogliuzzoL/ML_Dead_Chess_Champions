@@ -170,9 +170,11 @@ class MCTS:
 
         # Select the root child with the maximal visit count as the final move.
         if not self.root.children:
-            assert False, "Le nœud racine n'a pas d'enfants après simulation"
+            raise AssertionError(
+                "Root node has no children after simulations; this indicates a failure in expansion or policy evaluation."
+            )
 
-        # Extraction des coups et de leurs nombres de visites respectifs
+        # Extract moves and their corresponding visit counts
         moves = list(self.root.children.keys())
         visit_counts = np.array(
             [child.visits for child in self.root.children.values()], dtype=np.float64

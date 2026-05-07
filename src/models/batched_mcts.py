@@ -47,7 +47,7 @@ class BatchedMCTSManager:
         """Evaluates a batch of board positions in a single network pass."""
         tensors = []
         is_mirrored_list = []
-        process_boards = []  # Nouvelle liste pour stocker les plateaux correctement orientés
+        process_boards = []  # New list to store correctly oriented boards for inference
 
         for b in boards:
             if b.turn == chess.BLACK:
@@ -73,13 +73,13 @@ class BatchedMCTSManager:
             logits, _, values = self.engine.model(batch_tensor, s_self, s_oppo)
             values = values.cpu().numpy().flatten()
 
-            # Masquage des coups légaux : on utilise "process_boards" (les plateaux orientés)
+            # Mask legal moves using the oriented boards stored in `process_boards`
             legal_masks = torch.zeros_like(logits, dtype=torch.bool).to(self.device)
             for i, pb in enumerate(process_boards):
                 for move in pb.legal_moves:
                     legal_masks[i, self.all_moves_dict[move.uci()]] = True
 
-            # Utilisation de masked_fill
+            # Apply masked_fill to invalidate illegal move logits
             logits = logits.masked_fill(~legal_masks, -float("inf"))
             probs = logits.softmax(dim=-1).cpu().numpy()
             legal_masks_cpu = legal_masks.cpu().numpy()
@@ -108,21 +108,21 @@ class BatchedMCTSManager:
         roots = [BatchedNode() for _ in range(batch_size)]
         boards = [chess.Board(fen) for fen in fens]
 
-        # 1. Expansion initiale
+        # 1. Initial expansion of the root with high-probability moves
         probs_list, _ = self._predict_batch(boards, active_elos)
         for i in range(batch_size):
             for move, prob in probs_list[i].items():
                 if prob > self.threshold:
                     roots[i].children[move] = BatchedNode(prob)
 
-        # 2. Boucle des simulations
+        # 2. Simulation loop (MCTS iterations)
         for _ in range(num_simulations):
             paths = []
             leaf_boards = []
             leaf_indices = []
             terminal_values = {}
 
-            # Phase A: Sélection
+            # Phase A: Selection step within the tree policy
             for i in range(batch_size):
                 node = roots[i]
                 sim_board = boards[i].copy()
@@ -161,7 +161,7 @@ class BatchedMCTSManager:
                     leaf_boards.append(sim_board)
                     leaf_indices.append(i)
 
-            # Phase B: Évaluation Groupée (Batch Inference)
+            # Phase B: Batch evaluation of leaf nodes (network inference)
             if leaf_boards:
                 leaf_elos = [active_elos[idx] for idx in leaf_indices]
                 probs_list, values = self._predict_batch(leaf_boards, leaf_elos)
@@ -175,7 +175,7 @@ class BatchedMCTSManager:
             else:
                 values = []
 
-            # Phase C: Rétropropagation
+            # Phase C: Backpropagation of values through the traversed paths
             val_idx = 0
             for i in range(batch_size):
                 if i in terminal_values:
@@ -187,9 +187,9 @@ class BatchedMCTSManager:
                 for node in reversed(paths[i]):
                     node.visits += 1
                     node.value += val
-                    val = -val  # Alternance des joueurs
+                    val = -val  # Alternate player perspective during backpropagation
 
-        # 3. Extraction des résultats finaux
+        # 3. Extract final results and return best moves + probability distributions
         best_root_moves = []
         root_probs_list = []
 

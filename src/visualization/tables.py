@@ -1,3 +1,10 @@
+"""Utilities to generate LaTeX tables summarizing datasets, models and results.
+
+This module implements functions that produce LaTeX-ready tables for the
+paper: dataset overview, AutoEncoder architecture, training hyperparameters,
+accuracy comparisons and Jensen-Shannon Divergence stability tables.
+"""
+
 from pathlib import Path
 
 import numpy as np
@@ -10,6 +17,13 @@ logger = getLogger()
 
 
 def generate_latex_table(config: Config) -> None:
+    """Generate a LaTeX table summarizing the selected players' metadata.
+
+    The produced table contains player name, the average year of games and the
+    number of games contributed by each player. The resulting LaTeX fragment is
+    written to `config.paths.table_latex_path`.
+    """
+
     df = pl.read_parquet(config.paths.player_stats_path)
 
     df_sorted = df.select(
@@ -19,33 +33,38 @@ def generate_latex_table(config: Config) -> None:
     latex_rows = []
     for row in df_sorted.iter_rows():
         name, year, games = row
-        latex_rows.append(f"{name} & {year} & {games} \\\\")
+        # Construct LaTeX table row safely and avoid escaping errors
+        row_str = " & ".join([str(name), str(year), str(games)]) + " \\\\"
+        latex_rows.append(row_str)
 
     table_body = "\n".join(latex_rows)
 
-    latex_template = f"""\\begin{{table}}[!t]
-                         \\renewcommand{{\\arraystretch}}{{1.3}}
-                         \\caption{{Overview of selected chess champions}}
-                         \\label{{tab:dataset}}
-                         \\centering
-                         \\begin{{tabular}}{{l c c}}
-                         \\hline
-                         \\bfseries Player & \\bfseries Average game's year & \\bfseries Games \\\\
-                         \\hline\\hline
-                         {table_body}
-                         \\hline
-                         \\end{{tabular}}
-                         \\end{{table}}"""
+    latex_template = (
+        "\\begin{table}[!t]\n"
+        "\\renewcommand{\\arraystretch}{1.3}\n"
+        "\\caption{Overview of selected chess champions}\n"
+        "\\label{tab:dataset}\n"
+        "\\centering\n"
+        "\\begin{tabular}{l c c}\n"
+        "\\hline\n"
+        "\\bfseries Player & \\bfseries Average game's year & \\bfseries Games \\\\n"
+        "\\hline\\hline\n"
+        f"{table_body}\n"
+        "\\hline\n"
+        "\\end{tabular}\n"
+        "\\end{table}"
+    )
+
     with open(config.paths.table_latex_path, "w", encoding="utf-8") as f:
         f.write(latex_template)
 
-    logger.info(f"LaTeX table generated and saved to {config.paths.table_latex_path}")
+    logger.info("LaTeX table generated and saved to %s", config.paths.table_latex_path)
 
 
 def generate_ae_latex_table(config: Config) -> None:
-    """Génère le tableau LaTeX détaillant l'architecture et l'entraînement de l'AutoEncoder."""
+    """Generate a LaTeX table describing the AutoEncoder architecture and training parameters."""
 
-    # Extraction des paramètres
+    # Extract relevant hyperparameters
     lr = config.autoencoder.learning_rate
     batch_size = config.autoencoder.batch_size
     epochs = config.autoencoder.epochs
@@ -53,7 +72,7 @@ def generate_ae_latex_table(config: Config) -> None:
 
     out_path = config.paths.ae_table_latex_path
 
-    # Utilisation d'une notation compacte pour les couches
+    # Use a compact notation for layer shapes in the table
     latex_template = f"""\\begin{{table}}[!t]
                          \\renewcommand{{\\arraystretch}}{{1.3}}
                          \\caption{{Architecture and training parameters of the AutoEncoder}}
@@ -83,12 +102,16 @@ def generate_ae_latex_table(config: Config) -> None:
 
 
 def generate_accuracy_latex_table(config: Config) -> None:
-    """Génère le tableau LaTeX avec la précision absolue et le delta entre parenthèses."""
+    """Generate a LaTeX table reporting per-player move prediction accuracies.
 
-    # Chargement des précisions
+    The table contains absolute accuracies for each method and the delta
+    relative to the Maia-2 baseline presented in parentheses.
+    """
+
+    # Load per-player accuracies
     df_acc = pl.read_parquet(config.paths.accuracy_path).sort("player_name")
 
-    # Calcul de la précision globale (moyenne des précisions des joueurs)
+    # Compute global means (average across players)
     overall_baseline = df_acc.select(pl.col("baseline_accuracy").mean()).item()
     overall_custom = df_acc.select(pl.col("custom_accuracy").mean()).item()
     overall_mcts = df_acc.select(pl.col("mcts_accuracy").mean()).item()
@@ -115,10 +138,10 @@ def generate_accuracy_latex_table(config: Config) -> None:
             f"                         {name} & {acc_b} & {acc_c} & {acc_m} \\\\"
         )
 
-    # Ajout de la ligne avec les moyennes globales
+    # Append a row with global averages
     latex_rows.append("                         \\hline")
 
-    # Deltas pour la moyenne globale
+    # Compute deltas for the global averages
     avg_abs_c = overall_custom * 100
     avg_delta_c = (overall_custom - overall_baseline) * 100
     avg_c_str = f"{avg_abs_c:.1f}\\% ({avg_delta_c:+.1f}\\%)"
@@ -133,7 +156,7 @@ def generate_accuracy_latex_table(config: Config) -> None:
 
     table_body = "\n".join(latex_rows)
 
-    # J'ai retiré le (\Delta) des en-têtes puisque le format (+-%) le rend explicite
+    # The header omits a separate delta symbol since differences are presented as (+-%) next to the absolute values
     latex_template = f"""\\begin{{table}}[!t]
                          \\renewcommand{{\\arraystretch}}{{1.3}}
                          \\caption{{Move-accuracy of the different models on the test set. Values in parentheses indicate the difference relative to Maia-2.}}
@@ -148,34 +171,33 @@ def generate_accuracy_latex_table(config: Config) -> None:
                          \\end{{tabular}}
                          \\end{{table}}"""
 
-    # Enregistrement
+    # Persist the accuracy table to the configured output location
     out_path = config.paths.accuracy_table_latex_path
 
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(latex_template)
 
-    logger.info(f"Accuracy LaTeX table generated and saved to {out_path}")
+    logger.info("Accuracy LaTeX table generated and saved to %s", out_path)
 
 
 def generate_training_hyperparameters_latex_table(config: Config) -> None:
-    """Génère le tableau LaTeX détaillant les hyperparamètres d'entraînement des embeddings."""
+    """Generate a LaTeX table summarizing training hyperparameters for player embedding training."""
 
-    # Extraction des paramètres depuis config.training (avec des valeurs par défaut basées sur ton papier)
+    # Extract hyperparameters from config.player_training with sensible defaults
     optimizer = getattr(config.player_training, "optimizer", "Adam")
     lr = getattr(config.player_training, "learning_rate", 1e-4)
     batch_size = getattr(config.player_training, "batch_size", 512)
     epochs = getattr(config.player_training, "epochs", 10)
     loss = getattr(config.player_training, "loss_function", "Cross-Entropy")
 
-    # Formatage spécifique pour le Learning Rate en notation scientifique LaTeX (ex: 1 \times 10^{-4})
+    # Format learning rate in scientific LaTeX notation when small (e.g. 1 \times 10^{-4})
     if isinstance(lr, (float, int)) and lr < 0.01:
-        # Transforme 0.0001 ou 1e-4 en notation scientifique propre pour LaTeX
         base, exp = f"{lr:.0e}".split("e")
         lr_str = f"${base} \\times 10^{{{int(exp)}}}$"
     else:
         lr_str = str(lr)
 
-    # Chemin de sortie (sécurisé si hyperparameters_table_latex_path n'est pas dans config.yaml)
+    # Output path (fallback if not configured explicitly)
     out_path = getattr(
         config.paths,
         "hyperparameters_table_latex_path",
@@ -204,7 +226,7 @@ def generate_training_hyperparameters_latex_table(config: Config) -> None:
         f.write(latex_template)
 
     logger.info(
-        f"Training hyperparameters LaTeX table generated and saved to {out_path}"
+        "Training hyperparameters LaTeX table generated and saved to %s", out_path
     )
 
 

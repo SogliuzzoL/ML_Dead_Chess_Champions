@@ -90,7 +90,12 @@ class EvaluationDataset(Dataset):
 def mcts_worker(
     fens_chunk, players_chunk, config, num_simulations, batch_size, worker_id
 ):
-    """Worker exécuté par un cœur CPU indépendant."""
+    """Process-local worker that executes batched MCTS on an input chunk.
+
+    This function is intended to run in a separate process. It iterates over its
+    assigned chunk of positions and uses a BatchedMCTSManager to compute
+    move predictions and root-probability distributions.
+    """
 
     engine = MaiaEngine(config)
     mcts_manager = BatchedMCTSManager(engine, threshold=0.01)
@@ -98,7 +103,7 @@ def mcts_worker(
     all_best_moves = []
     all_probs = []
 
-    # tqdm est maintenant ici ! Le paramètre `position` le place sur sa propre ligne.
+    # The progress bar is positioned per-worker via the `position` parameter.
     for i in tqdm(
         range(0, len(fens_chunk), batch_size),
         desc=f"Worker {worker_id + 1}",
@@ -149,9 +154,9 @@ def generate_predictions_parquet(
     custom_probs_temp = []
 
     # =========================================================================
-    # 1. INFÉRENCE EN BATCH (Baseline & Custom Model)
+    # 1. BATCH INFERENCE (Baseline & Custom Models)
     # =========================================================================
-    logger.info("1/3 Inférence en batch pour les modèles Baseline et Custom...")
+    logger.info("1/3 Performing batched inference for Baseline and Custom models...")
     with torch.no_grad():
         for boards, active_ids, opponent_ids, _, legal_masks in tqdm(
             test_loader, desc="Batch Inference"
@@ -197,9 +202,9 @@ def generate_predictions_parquet(
                 custom_preds_temp.append(all_moves_dict_reversed[preds_custom_cpu[i]])
 
     # =========================================================================
-    # 2. ALIGNEMENT ET DÉ-MIROIR (Baseline & Custom Model)
+    # 2. ALIGNMENT AND DEMIRRORING (Baseline & Custom Models)
     # =========================================================================
-    logger.info("2/3 Réalignement des espaces de coups (de-mirroring)...")
+    logger.info("2/3 Aligning and demirroring move probability spaces...")
     colors = df_test["player_color"].to_list()
 
     final_base_preds, final_base_probs = [], []
@@ -225,7 +230,7 @@ def generate_predictions_parquet(
         final_custom_probs.append(json.dumps(p_cust))
 
     # =========================================================================
-    # 3. INFÉRENCE MCTS (MULTI-PROCESSING + BATCHING)
+    # 3. MCTS INFERENCE (MULTI-PROCESSING + BATCHING)
     # =========================================================================
     try:
         mp.set_start_method("spawn", force=True)
@@ -238,7 +243,7 @@ def generate_predictions_parquet(
     num_workers = 24
     worker_batch_size = 256
 
-    # Découpage du dataset avec attribution d'un worker_id
+    # Partition the dataset and assign a worker identifier to each chunk
     chunk_size = math.ceil(len(fens_list) / num_workers)
     chunks = []
     w_id = 0
@@ -255,7 +260,9 @@ def generate_predictions_parquet(
     mcts_preds = []
     mcts_probs = []
 
-    logger.info(f"3/3 Inférence MCTS (Multi-Processing avec {num_workers} cœurs)...")
+    logger.info(
+        "3/3 Performing MCTS inference using %d worker processes...", num_workers
+    )
 
     with ProcessPoolExecutor(max_workers=num_workers) as executor:
         futures = []
@@ -278,7 +285,7 @@ def generate_predictions_parquet(
             mcts_probs.extend(b_probs)
 
     # =========================================================================
-    # 4. ASSEMBLAGE ET SAUVEGARDE
+    # 4. ASSEMBLY AND PERSISTENCE
     # =========================================================================
     df_predictions = df_test.select(["game_id", "fen", "player_name", "move"]).rename(
         {"move": "true_move"}
@@ -296,7 +303,7 @@ def generate_predictions_parquet(
 
     output_path = config.paths.predictions_path
     df_predictions.write_parquet(output_path)
-    logger.info(f"Fichier de prédictions sauvegardé dans {output_path}")
+    logger.info("Predictions file has been saved to %s", output_path)
 
 
 def evaluate_players(
@@ -314,7 +321,7 @@ def evaluate_players(
         )
         run_training(config)
 
-    # Définition des chemins
+    # Ensure evaluation directory exists and generate predictions parquet
     eval_dir = Path(config.paths.evaluation_dir)
     eval_dir.mkdir(parents=True, exist_ok=True)
     generate_predictions_parquet(config, num_mcts_simulations)

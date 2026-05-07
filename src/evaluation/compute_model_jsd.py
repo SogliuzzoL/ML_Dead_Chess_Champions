@@ -1,3 +1,11 @@
+"""Utilities to convert model-generated predictions into AE->UMAP embeddings and evaluate JSD.
+
+This module orchestrates the conversion of model predictions (e.g., Maia variants)
+into autoencoder latent vectors, transforms them via a serialized UMAP instance,
+and reuses existing evaluation routines to compute Jensen-Shannon Divergence
+matrices and stability analyses.
+"""
+
 from pathlib import Path
 from typing import Dict
 

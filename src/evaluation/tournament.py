@@ -1,3 +1,10 @@
+"""Tournament simulation utilities for head-to-head competitions.
+
+This module implements several tournament managers (Single Elimination,
+Round Robin, Swiss System) that orchestrate match scheduling, execution and
+standings computation using the `run_match_series` helper to simulate games.
+"""
+
 import itertools
 import random
 from typing import List, Optional
@@ -190,10 +197,17 @@ class SwissSystem(TournamentManager):
         self.num_rounds = num_rounds
         self.scores = {player: 0.0 for player in self.players}
         self.played_pairs = set()
-        self.byes = set()  # Historique pour s'assurer qu'aucun joueur n'a 2 byes
+        self.byes = (
+            set()
+        )  # History of players who have received a bye to avoid duplicates
 
     def _get_pairings(self) -> tuple[List[tuple[str, str]], Optional[str]]:
-        """Génère les paires et désigne un joueur pour le 'Bye' si le nombre est impair."""
+        """Generate pairings for the round and designate a bye player if required.
+
+        Returns a tuple (pairings, bye_player) where `pairings` is a list of
+        (player_a, player_b) tuples and `bye_player` is the identifier of the
+        player receiving a bye when the number of participants is odd.
+        """
         sorted_players = sorted(
             self.scores.keys(), key=lambda p: self.scores[p], reverse=True
         )
@@ -201,9 +215,9 @@ class SwissSystem(TournamentManager):
         used = set()
         bye_player = None
 
-        # Gestion du point "Bye" si le nombre de joueurs est impair
+        # Handle bye assignment when the number of players is odd. Select the
+        # lowest-ranked player (by score) who has not yet received a bye.
         if len(sorted_players) % 2 != 0:
-            # On cherche en partant de la fin (les moins bons scores)
             for p in reversed(sorted_players):
                 if p not in self.byes:
                     bye_player = p
@@ -211,7 +225,7 @@ class SwissSystem(TournamentManager):
                     used.add(p)
                     break
 
-            # Sécurité au cas où tout le monde aurait déjà eu un bye
+            # Fallback: if all players have already received a bye, assign to the last player
             if bye_player is None:
                 bye_player = sorted_players[-1]
                 used.add(bye_player)
@@ -221,7 +235,7 @@ class SwissSystem(TournamentManager):
             if p1 in used:
                 continue
 
-            # Recherche du prochain adversaire disponible n'ayant pas encore affronté p1
+            # Search for an available opponent that the player has not yet faced
             for j in range(i + 1, len(sorted_players)):
                 p2 = sorted_players[j]
                 match_id = tuple(sorted([p1, p2]))
@@ -233,7 +247,7 @@ class SwissSystem(TournamentManager):
                     used.add(p2)
                     break
             else:
-                # Solution de repli si tous les joueurs proches se sont déjà affrontés
+                # Fallback: pair with the next available player if all nearby opponents have been played
                 for j in range(i + 1, len(sorted_players)):
                     p2 = sorted_players[j]
                     if p2 not in used:
@@ -253,14 +267,14 @@ class SwissSystem(TournamentManager):
             logger.info(f"--- Round {round_num} ---")
             pairings, bye_player = self._get_pairings()
 
-            # Attribution du point gratuit
+            # Award the automatic point for the bye
             if bye_player:
                 logger.info(
-                    f"[BYE] {bye_player} receives a bye (1.0 point) this round."
+                    "[BYE] %s receives a bye (1.0 point) this round.", bye_player
                 )
                 self.scores[bye_player] += 1.0
 
-            # Lancement des matchs
+            # Execute scheduled matches
             for player_a, player_b in pairings:
                 logger.info(f"Scheduled match: {player_a} vs {player_b}")
                 results = run_match_series(
@@ -278,9 +292,9 @@ class SwissSystem(TournamentManager):
                         self.scores[player_b] += 1.0 if i % 2 == 0 else 0
                         self.scores[player_a] += 0 if i % 2 == 0 else 1.0
 
-            # Affichage du classement intermédiaire
+            # Display intermediate standings after the round
             standings = sorted(self.scores.items(), key=lambda x: x[1], reverse=True)
-            logger.info(f"Standings after Round {round_num}:")
+            logger.info("Standings after Round %d:", round_num)
             for rank, (player, score) in enumerate(standings, 1):
                 logger.info(f"{rank}. {player} with {score} points")
             logger.info("\n")

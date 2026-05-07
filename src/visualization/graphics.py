@@ -454,7 +454,7 @@ def learning_curves(config: Config) -> None:
     pdf = df.to_pandas()
     epochs = pdf["epoch"]
 
-    # Création de la figure avec 2 sous-graphes
+    # Create the figure with two subplots
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(FIG_WIDTH * 2.2, DISTRIBUTION_HEIGHT))
 
     # --- Sous-graphe 1 : Loss ---

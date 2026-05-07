@@ -2,48 +2,48 @@
 #SBATCH --job-name=chess_eval
 #SBATCH --output=logs/job_%j.out
 #SBATCH --error=logs/job_%j.err
-#SBATCH --partition=batch          # La partition correcte pour Lyra
-#SBATCH --gpus=1                   # Une GPU par nœud sur Lyra
-#SBATCH --cpus-per-task=4          # 4 cœurs CPU pour le multi-processing MCTS
-#SBATCH --mem=32G                  # 32 Go de RAM
+#SBATCH --partition=batch          # Partition to submit to
+#SBATCH --gpus=1                   # GPUs per node
+#SBATCH --cpus-per-task=4          # CPU cores allocated per task (for multiprocessing MCTS)
+#SBATCH --mem=32G                  # Memory allocation
 #SBATCH --time=4-00:00:00
 
-# Se placer dans le dossier du projet
+# Change to the job submission directory
 cd $SLURM_SUBMIT_DIR
 
-# Exposer uv
+# Ensure uv is available in PATH
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
-# Redirection du cache vers le Global Scratch
+# Redirect UV cache to the global scratch area
 export UV_CACHE_DIR="$GLOBALSCRATCH/.cache/uv"
 
-# Set threading/env vars early so child processes inherit them
+# Set threading/environment variables early so children inherit them
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
-# Disable jemalloc background threads
+# Disable jemalloc background threads to avoid spawn issues
 export MALLOC_CONF="background_thread:false"
 
-# (Optionnel) augmenter la limite de processus si ton admin/cluster l'autorise
+# (Optional) increase process limits if permitted by cluster admin
 # ulimit -u 4096
 
-# Chargement de l'environnement CUDA (préciser version si nécessaire)
+# Load CUDA environment modules (specify version if required)
 module purge
 module load CUDA
 
-# Synchronisation de l'environnement
+# Synchronize project environment using uv
 uv sync
 
 echo "=========================================================="
-echo " DÉMARRAGE DU JOB : $(date)"
-echo " Nœud             : $SLURM_JOB_NODELIST"
+echo " JOB START   : $(date)"
+echo " Nodes       : $SLURM_JOB_NODELIST"
 echo "=========================================================="
 
-echo "Lancement de l'évaluation ..."
+echo "Launching evaluation..."
 uv run main.py evaluate_mcts_params
 
 echo "=========================================================="
-echo " JOB TERMINÉ : $(date)"
+echo " JOB FINISHED: $(date)"
 echo "=========================================================="

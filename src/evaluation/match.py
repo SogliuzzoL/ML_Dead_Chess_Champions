@@ -1,3 +1,10 @@
+"""Helpers for simulating and persisting head-to-head match series.
+
+This module exposes `run_match_series`, a convenience routine that runs a
+sequence of games between two agents using the MaiaEngine, persists completed
+PGNs to the evaluation directory, and returns the sequence of results.
+"""
+
 import os
 from datetime import datetime
 from typing import List
@@ -15,16 +22,23 @@ logger = getLogger()
 def run_match_series(
     engine: MaiaEngine, config: Config, player_a: str, player_b: str, num_games: int = 2
 ) -> List[str]:
-    """Exécute une série de matchs entre deux joueurs et sauvegarde les PGNs."""
+    """Execute a series of matches between two agents and persist the resulting PGNs.
 
-    # On utilise le dossier d'évaluation de ta config pour créer le dossier des matchs
+    The function alternates player colors between games, runs an MCTS-driven
+    prediction loop until game termination, records standard PGN headers and
+    writes each completed game to the evaluation directory configured in `config`.
+
+    Returns a list of game results as strings (e.g., '1-0', '0-1', '1/2-1/2').
+    """
+
+    # Use the configured evaluation directory to persist match PGNs
     pgn_output_dir = os.path.join(config.paths.evaluation_dir, "matches")
     os.makedirs(pgn_output_dir, exist_ok=True)
     series_results = []
 
     for i in range(num_games):
         board = chess.Board()
-        # Alternance des couleurs
+        # Alternate player colors between games
         if i % 2 == 0:
             white_name, black_name = player_a, player_b
         else:
@@ -41,7 +55,11 @@ def run_match_series(
         node = game
 
         logger.info(
-            f"[Game {i + 1}/{num_games}] Match initialization: {white_name} (White) vs {black_name} (Black)."
+            "[Game %d/%d] Match initialization: %s (White) vs %s (Black).",
+            i + 1,
+            num_games,
+            white_name,
+            black_name,
         )
 
         while not board.is_game_over():
@@ -49,7 +67,7 @@ def run_match_series(
             active_style = white_name if board.turn == chess.WHITE else black_name
             opponent_style = black_name if board.turn == chess.WHITE else white_name
 
-            # Plus aucun Stockfish ! Le MCTS est 100% autonome
+            # MCTS is used exclusively for move selection in these simulations
             move_uci, _ = engine.predict_mcts(
                 fen=fen,
                 pgn=str(game),
@@ -73,8 +91,12 @@ def run_match_series(
             pgn_file.write(str(game))
 
         logger.info(
-            f"[Game {i + 1}/{num_games}] Match concluded. Duration: {board.fullmove_number} moves. Result: {result}."
+            "[Game %d/%d] Match concluded. Moves: %d. Result: %s.",
+            i + 1,
+            num_games,
+            board.fullmove_number,
+            result,
         )
 
-    logger.info(f"Match series terminated. Aggregate results: {series_results}.")
+    logger.info("Match series terminated. Aggregate results: %s.", series_results)
     return series_results
