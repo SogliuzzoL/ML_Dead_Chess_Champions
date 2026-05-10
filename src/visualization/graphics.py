@@ -52,8 +52,9 @@ sns.set_theme(
     },
 )
 
-# Figure size constants in inches (IEEE single-column friendly)
-FIG_WIDTH = 3.5
+# Figure size constants in inches
+FIG_WIDTH = 3.45  # approx IEEE single-column width (in)
+FIG_WIDTH_DOUBLE = 7.25  # approx IEEE double-column/full width (in)
 HEATMAP_HEIGHT = 4.5
 DISTRIBUTION_HEIGHT = 2.8
 
@@ -149,15 +150,197 @@ def _to_ordered_square_matrix(
 # ---------- Plotting routines ----------
 
 
-def jsd_heatmap(config: Config) -> None:
+def _choose_annotation_settings(
+    n: int, double_column: bool, default_fmt: str = ".2f"
+) -> dict:
+    """
+    Return annotation settings tuned for visibility. The user requires values, so
+    annotations are enabled for all matrix sizes; font size and formatting are
+    adapted to keep annotations as legible as possible.
+
+    Parameters
+    - n: matrix dimension (rows)
+    - double_column: whether the figure spans two columns (larger fonts)
+    - default_fmt: numeric format string passed to seaborn (e.g. '.2f' or '.4f')
+    """
+    # Font size heuristics (bigger for double-column layouts)
+    if n <= 8:
+        size = 9 if double_column else 7
+    elif n <= 15:
+        size = 7 if double_column else 5
+    elif n <= 25:
+        size = 5 if double_column else 4
+    else:
+        # Very large matrices: still annotate but keep font small to avoid overlap
+        size = 4 if double_column else 3
+
+    return {"annot": True, "fmt": default_fmt, "annot_kws": {"size": size}}
+
+
+def _render_heatmap(
+    matrix_pd: pd.DataFrame,
+    out_path: str,
+    title: str = "",
+    xlabel: str = "",
+    ylabel: str = "",
+    double_column: bool = True,
+    cmap: str = HEATMAP_CMAP,
+    cbar_label: str = "Jensen-Shannon Divergence",
+    annot_fmt: str = ".2f",
+) -> None:
+    """
+    Common heatmap rendering routine that centralizes figure sizing, annotation rules
+    and colorbar placement to produce publication-ready output for IEEE single/double
+    column layouts.
+    """
+    # Choose width for single or double column
+    width = FIG_WIDTH_DOUBLE if double_column else FIG_WIDTH
+    fig, ax = plt.subplots(figsize=(width, HEATMAP_HEIGHT))
+
+    n = 0
+    try:
+        n = matrix_pd.shape[0]
+    except Exception:
+        n = 0
+
+    annot_settings = _choose_annotation_settings(
+        n, double_column, default_fmt=annot_fmt
+    )
+
+    # Draw heatmap with square cells (square=True) for consistent aspect
+    mesh = sns.heatmap(
+        matrix_pd,
+        ax=ax,
+        cmap=cmap,
+        square=True,
+        linewidths=0.4 if n <= 30 else 0.15,
+        linecolor="#DDDDDD",
+        cbar_kws={"label": cbar_label, "fraction": 0.05, "pad": 0.03},
+        vmin=0.0,
+        vmax=1.0,
+        **annot_settings,
+    )
+
+    # Always improve annotation visibility: per-cell contrasting text color, a semi-opaque bbox
+    # behind each label and a strong stroke outline. This aims for maximal legibility in print.
+    # safe-get the matrix values as a numpy array; handle non-numeric gracefully
+    try:
+        values = matrix_pd.values
+    except Exception:
+        values = None
+
+    # Build colormap and normalizer consistent with the heatmap call
+    cmap_obj = cm.get_cmap(cmap)
+    norm = mcolors.Normalize(vmin=0.0, vmax=1.0)
+
+    # Use matplotlib path effects to add a stroke outline to text for extra contrast
+    try:
+        import matplotlib.patheffects as patheffects  # local import to avoid global overhead
+    except Exception:
+        patheffects = None
+
+    texts = ax.texts  # list of Text objects created by seaborn when annot=True
+    if values is not None and len(texts) == values.size:
+        # Ensure row-major order mapping between texts and values
+        rows, cols = values.shape
+        k = 0
+        for i in range(rows):
+            for j in range(cols):
+                txt = texts[k]
+                k += 1
+                try:
+                    v = float(values[i, j])
+                except Exception:
+                    # Skip non-numeric (e.g., NaN) cells
+                    continue
+
+                rgba = cmap_obj(norm(v))
+
+                # Convert sRGB to linear RGB for luminance per WCAG
+                def to_linear(c: float) -> float:
+                    return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+                r_lin = to_linear(rgba[0])
+                g_lin = to_linear(rgba[1])
+                b_lin = to_linear(rgba[2])
+                lum = 0.2126 * r_lin + 0.7152 * g_lin + 0.0722 * b_lin
+
+                # Contrast ratio with white and black according to WCAG
+                def contrast_ratio(l1: float, l2: float) -> float:
+                    lighter = max(l1, l2)
+                    darker = min(l1, l2)
+                    return (lighter + 0.05) / (darker + 0.05)
+
+                cr_white = contrast_ratio(1.0, lum)
+                cr_black = contrast_ratio(0.0, lum)
+
+                # Choose the text color that yields better contrast
+                if cr_white >= cr_black:
+                    text_color = "white"
+                    outline_color = "black"
+                else:
+                    text_color = "black"
+                    outline_color = "white"
+
+                # Apply color to text
+                txt.set_color(text_color)
+
+                # Apply a semi-opaque bbox behind text to maximize readability
+                # Use the outline_color as bbox facecolor (contrasting) with alpha
+                try:
+                    bbox_face = outline_color
+                    bbox_props = dict(
+                        boxstyle="round,pad=0.18",
+                        linewidth=0,
+                        facecolor=bbox_face,
+                        alpha=0.68,
+                    )
+                    txt.set_bbox(bbox_props)
+                except Exception:
+                    pass
+
+                # apply a stronger stroke outline for readability when available
+                if patheffects is not None:
+                    # Slightly stronger stroke for readability
+                    stroke_w = 1.8 if (n <= 12) else 1.2
+                    txt.set_path_effects(
+                        [
+                            patheffects.Stroke(
+                                linewidth=stroke_w, foreground=outline_color
+                            ),
+                            patheffects.Normal(),
+                        ]
+                    )
+
+    # Axis labels
+    ax.set_title(title, fontsize=10 if double_column else 9)
+    ax.set_xlabel(xlabel, fontsize=8 if double_column else 7)
+    ax.set_ylabel(ylabel, fontsize=8 if double_column else 7)
+
+    # Tick label sizing and rotation
+    xt_fs = 7 if double_column else 4.5
+    yt_fs = 7 if double_column else 4.5
+    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=xt_fs)
+    plt.setp(ax.get_yticklabels(), rotation=0, fontsize=yt_fs)
+
+    # Improve layout and save
+    sns.despine(ax=ax)
+    fig.tight_layout()
+
+    _save_figure(fig, out_path)
+    plt.close(fig)
+
+
+def jsd_heatmap(config: Config, *, double_column: bool = True) -> None:
     """
     Generate a symmetric Jensen-Shannon Divergence heatmap (test set only) and save it as a PDF.
 
     Visualization choices:
     - Colormap: reversed 'magma' so low distances (similarity) appear bright and
-      large distances appear dark. This choice is documented and consistent across figures.
-    - Annotated values are shown with two decimal places; annotation font sizes are tuned
-      for compact multi-player matrices suitable for IEEE single-column figures.
+      large distances appear dark.
+    - For larger player matrices annotations are disabled to avoid clutter.
+    - The caller can request `double_column=True` to produce a wider figure suitable
+      for spanning two IEEE columns.
     """
     # Load precomputed distances for the test set
     distances_path = config.paths.get_distances_path(
@@ -192,33 +375,18 @@ def jsd_heatmap(config: Config) -> None:
         df, p1_col="p1", p2_col="p2", value_col="distance"
     )
 
-    # Figure and axis configuration
-    fig, ax = plt.subplots(figsize=(FIG_WIDTH, HEATMAP_HEIGHT))
-
-    sns.heatmap(
+    # Render with the centralized heatmap routine
+    out_path = config.paths.jsd_heatmap_path
+    title = f"Jensen-Shannon Divergence ({config.jsd.method})"
+    _render_heatmap(
         matrix_df,
-        ax=ax,
+        out_path,
+        title=title,
+        xlabel="",
+        ylabel="",
+        double_column=double_column,
         cmap=HEATMAP_CMAP,
-        annot=True,
-        fmt=".2f",
-        annot_kws={"size": 2.2},
-        square=True,
-        linewidths=0.01,
-        linecolor="#CCCCCC",
-        cbar_kws={"label": "Jensen-Shannon Divergence", "shrink": 0.5, "pad": 0.04},
     )
-
-    # Minimal axis labeling to meet academic standards; use LaTeX captions externally.
-    ax.set_xlabel("")
-    ax.set_ylabel("")
-
-    # Ticks formatting for compact printing
-    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=3.5)
-    plt.setp(ax.get_yticklabels(), rotation=0, fontsize=3.5)
-
-    # Persist the figure
-    _save_figure(fig, config.paths.jsd_heatmap_path)
-    plt.close(fig)
 
 
 def moves_distribution(config: Config, top_n: Optional[int] = None) -> None:
@@ -231,15 +399,6 @@ def moves_distribution(config: Config, top_n: Optional[int] = None) -> None:
         Project configuration object containing dataset path and output locations.
     top_n : Optional[int]
         If provided, restricts the visualization to the top_n players by move count.
-
-    Rationale:
-    - Bars are ordered by descending count to emphasise the most prolific players.
-    - Axis titles are explicit and avoid unexplained acronyms to satisfy publication norms.
-
-    Implementation note:
-    - This implementation uses Matplotlib's `bar` instead of Seaborn's `barplot`
-      to avoid a deprecation/future warning when passing a `palette` without `hue`.
-    - Bar colors are mapped from the 'magma' colormap proportionally to each player's count.
     """
     df = _safe_read_parquet(config.paths.dataset_path)
     if df is None:
@@ -301,17 +460,13 @@ def moves_distribution(config: Config, top_n: Optional[int] = None) -> None:
     plt.close(fig)
 
 
-def stability_heatmap(config: Config) -> None:
+def stability_heatmap(config: Config, *, double_column: bool = True) -> None:
     """
     Generate an asymmetric 'stability' heatmap comparing train-set players (rows)
     to test-set players (columns). The diagonal illustrates within-player similarity.
 
-    This function reads a "cross distances" parquet and expects columns:
-    - 'p_train' : player name from training set
-    - 'p_test'  : player name from test set
-    - 'distance' : numeric distance (e.g., Jensen-Shannon)
-
-    If the expected file is missing, the function will log an informative error and return.
+    The caller can set `double_column=True` to produce a wider figure suitable for
+    spanning two IEEE columns.
     """
     method = config.jsd.method
     kde = config.jsd.kde
@@ -340,42 +495,26 @@ def stability_heatmap(config: Config) -> None:
         .reindex(index=players_ordered, columns=players_ordered)
     )
 
-    fig, ax = plt.subplots(figsize=(FIG_WIDTH, HEATMAP_HEIGHT))
-
-    sns.heatmap(
+    out_path = config.paths.jsd_stability_heatmap_path
+    # title = f"Stability (Train vs Test) — {method}"
+    _render_heatmap(
         matrix_pd,
-        ax=ax,
+        out_path,
+        # title=title,
+        xlabel="Test Set Players",
+        ylabel="Train Set Players",
+        double_column=double_column,
         cmap=HEATMAP_CMAP,
-        annot=True,
-        fmt=".4f",
-        annot_kws={"size": 2.2},
-        square=True,
-        linewidths=0.01,
-        linecolor="#CCCCCC",
-        cbar_kws={"label": "Jensen-Shannon Divergence", "shrink": 0.5, "pad": 0.04},
+        annot_fmt=".3f",
     )
 
-    # Asymmetric labels emphasize the experimental axes
-    ax.set_xlabel("Test Set Players", fontsize=6)
-    ax.set_ylabel("Train Set Players", fontsize=6)
 
-    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=3.5)
-    plt.setp(ax.get_yticklabels(), rotation=0, fontsize=3.5)
-
-    out_path = config.paths.jsd_stability_heatmap_path
-    _save_figure(fig, out_path)
-    logger.info("Asymmetric stability heatmap saved to %s", out_path)
-    plt.close(fig)
-
-
-def stability_heatmap_real_vs_pred(config: Config) -> None:
+def stability_heatmap_real_vs_pred(
+    config: Config, *, double_column: bool = True
+) -> None:
     """
     Generate a swapped-stability heatmap where rows represent REAL (test) players
     and columns represent PREDICTED (model/train) players.
-
-    This reads the same full cross-matrix parquet that `stability_heatmap` uses
-    but pivots it with index=`p_test` and columns=`p_train` to present the
-    requested orientation (Real vs Predicted).
     """
     method = config.jsd.method
     kde = config.jsd.kde
@@ -404,34 +543,20 @@ def stability_heatmap_real_vs_pred(config: Config) -> None:
         .reindex(index=players_ordered, columns=players_ordered)
     )
 
-    fig, ax = plt.subplots(figsize=(FIG_WIDTH, HEATMAP_HEIGHT))
-
-    sns.heatmap(
-        matrix_pd,
-        ax=ax,
-        cmap=HEATMAP_CMAP,
-        annot=True,
-        fmt=".4f",
-        annot_kws={"size": 2.2},
-        square=True,
-        linewidths=0.01,
-        linecolor="#CCCCCC",
-        cbar_kws={"label": "Jensen-Shannon Divergence", "shrink": 0.5, "pad": 0.04},
-    )
-
-    # Explicit labels to clarify axes
-    ax.set_xlabel("Predicted (Model) Players", fontsize=6)
-    ax.set_ylabel("Real (Test) Players", fontsize=6)
-
-    plt.setp(ax.get_xticklabels(), rotation=90, ha="center", fontsize=3.5)
-    plt.setp(ax.get_yticklabels(), rotation=0, fontsize=3.5)
-
     out_path = config.paths.method_jsd_stability_real_pred_template.format(
         method=method
     )
-    _save_figure(fig, out_path)
-    logger.info("Real-vs-Pred stability heatmap saved to %s", out_path)
-    plt.close(fig)
+    title = f"Real vs Predicted — {method}"
+    _render_heatmap(
+        matrix_pd,
+        out_path,
+        title=title,
+        xlabel="Predicted (Model) Players",
+        ylabel="Real (Test) Players",
+        double_column=double_column,
+        cmap=HEATMAP_CMAP,
+        annot_fmt=".4f",
+    )
 
 
 def learning_curves(config: Config) -> None:
@@ -457,7 +582,7 @@ def learning_curves(config: Config) -> None:
     # Create the figure with two subplots
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(FIG_WIDTH * 2.2, DISTRIBUTION_HEIGHT))
 
-    # --- Sous-graphe 1 : Loss ---
+    # --- Subplot 1 : Loss ---
     ax1.plot(
         epochs,
         pdf["train_loss"],
@@ -473,7 +598,7 @@ def learning_curves(config: Config) -> None:
     ax1.grid(True, linestyle="--", alpha=0.5)
     ax1.legend(frameon=False)
 
-    # --- Sous-graphe 2 : Accuracy ---
+    # --- Subplot 2 : Accuracy ---
     ax2.plot(
         epochs,
         pdf["train_accuracy"],
@@ -524,7 +649,9 @@ def generate_all_graphics(config: Config) -> None:
     generate_model_graphics(config)
 
 
-def generate_model_graphics(config: Config, methods: list | None = None) -> None:
+def generate_model_graphics(
+    config: Config, methods: list | None = None, *, double_column: bool = True
+) -> None:
     """
     Generate JSD heatmaps and stability heatmaps for a list of embedding methods.
 
@@ -565,23 +692,19 @@ def generate_model_graphics(config: Config, methods: list | None = None) -> None
         config.paths.jsd_stability_heatmap_path = stab_out
 
         try:
-            jsd_heatmap(config)
+            jsd_heatmap(config, double_column=double_column)
         except Exception as exc:
             logger.error("Failed to generate JSD heatmap for %s: %s", method, exc)
 
         try:
-            stability_heatmap(config)
+            stability_heatmap(config, double_column=double_column)
         except Exception as exc:
             logger.error("Failed to generate stability heatmap for %s: %s", method, exc)
 
         # Generate the swapped orientation Real vs Predicted
         try:
-            # Temporarily set the template location for the real-vs-pred output
-            orig_template = getattr(
-                config.paths, "method_jsd_stability_real_pred_template", None
-            )
-            # Call the new plotting routine
-            stability_heatmap_real_vs_pred(config)
+            # Call the new plotting routine with the same double_column preference
+            stability_heatmap_real_vs_pred(config, double_column=double_column)
         except Exception as exc:
             logger.error(
                 "Failed to generate Real-vs-Pred stability heatmap for %s: %s",
