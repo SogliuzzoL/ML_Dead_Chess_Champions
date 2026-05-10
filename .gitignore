@@ -209,3 +209,5 @@ pyrightconfig.json
 *.cls
 *.tex
 *.bib
+
+*txt

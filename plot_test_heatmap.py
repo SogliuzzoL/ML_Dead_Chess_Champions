@@ -25,7 +25,7 @@ HEATMAP_HEIGHT = 4.5
 HEATMAP_CMAP = "magma_r"
 
 INPUT = Path("data/processed/chess_champion_distances.parquet")
-OUT = Path("results/graphics/jsd_heatmap_exact_style.pdf")
+OUT = Path("results/graphics/jsd_heatmap_playstyle.pdf")
 
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
