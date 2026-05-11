@@ -116,7 +116,7 @@ def compute_train_test_distances(
     config: Config,
     method: str,
     kde: bool = True,
-    n_bootstrap: int = 0,
+    n_bootstrap: int = 1000,
     ci_alpha: float = 0.05,
 ) -> None:
     """Evaluate the stability of an embedding method by comparing training and test splits.
@@ -194,10 +194,10 @@ def compute_train_test_distances(
                 # resample with replacement within each split, keeping same sample size
                 try:
                     idx_t = np.random.choice(
-                        len(emb_train), size=len(emb_train), replace=True
+                        len(emb_train), size=int(len(emb_train) * 0.8), replace=False
                     )
                     idx_e = np.random.choice(
-                        len(emb_test), size=len(emb_test), replace=True
+                        len(emb_test), size=int(len(emb_test) * 0.8), replace=False
                     )
                     emb_t_bs = emb_train[idx_t]
                     emb_e_bs = emb_test[idx_e]

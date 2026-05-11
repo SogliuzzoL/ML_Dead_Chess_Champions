@@ -101,6 +101,9 @@ uv run main.py autoencoder
 6. Fit and apply UMAP to the autoencoder latent representations:
 
 ```bash
+# If cuda is available
+uv run python -m cuml.accel main.py umap
+# Else
 uv run main.py umap
 ```
 
@@ -119,6 +122,9 @@ uv run main.py train_players
 9. Evaluate trained player models against held-out data:
 
 ```bash
+# If cuda is available
+uv run python -m cuml.accel evaluate_players
+# Else
 uv run main.py evaluate_players
 ```
 
