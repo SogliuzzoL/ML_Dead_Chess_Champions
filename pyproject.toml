@@ -1,7 +1,7 @@
 [project]
-name = "ml-dead-chess-champions"
-version = "0.1.0"
-description = "Add your description here"
+name = "modeling_player-specific_chess_behaviors"
+version = "1.0.0"
+description = ""
 readme = "README.md"
 requires-python = "==3.13.0"
 dependencies = [

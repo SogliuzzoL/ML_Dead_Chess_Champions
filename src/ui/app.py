@@ -50,7 +50,7 @@ def create_app(config: Config) -> Flask:
                 opponent_elo=data["opponent_elo"],
                 c_puct=1.5,
                 threshold=0.01,
-                num_simulations=1000,
+                num_simulations=100,
             )
 
             return jsonify({"move": move_uci, "move_dict": move_dict})
