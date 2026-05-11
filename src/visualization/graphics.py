@@ -1,7 +1,7 @@
 """
 Refactored visualization utilities for the ML_Dead_Chess_Champions project.
 
-This module provides routines to produce publication-quality figures (IEEE-friendly)
+This module provides routines to produce publication-quality figures
 for:
  - Jensen-Shannon Divergence heatmaps (symmetric, test-only)
  - Asymmetric stability heatmaps (train vs test)
@@ -53,8 +53,8 @@ sns.set_theme(
 )
 
 # Figure size constants in inches
-FIG_WIDTH = 3.45  # approx IEEE single-column width (in)
-FIG_WIDTH_DOUBLE = 7.25  # approx IEEE double-column/full width (in)
+FIG_WIDTH = 3.45
+FIG_WIDTH_DOUBLE = 7.25
 HEATMAP_HEIGHT = 4.5
 DISTRIBUTION_HEIGHT = 2.8
 
@@ -190,7 +190,7 @@ def _render_heatmap(
 ) -> None:
     """
     Common heatmap rendering routine that centralizes figure sizing, annotation rules
-    and colorbar placement to produce publication-ready output for IEEE single/double
+    and colorbar placement to produce publication-ready output for single/double
     column layouts.
     """
     # Choose width for single or double column
@@ -339,8 +339,7 @@ def jsd_heatmap(config: Config, *, double_column: bool = True) -> None:
     - Colormap: reversed 'magma' so low distances (similarity) appear bright and
       large distances appear dark.
     - For larger player matrices annotations are disabled to avoid clutter.
-    - The caller can request `double_column=True` to produce a wider figure suitable
-      for spanning two IEEE columns.
+    - The caller can request `double_column=True` to produce a wider figure
     """
     # Load precomputed distances for the test set
     distances_path = config.paths.get_distances_path(
@@ -377,11 +376,11 @@ def jsd_heatmap(config: Config, *, double_column: bool = True) -> None:
 
     # Render with the centralized heatmap routine
     out_path = config.paths.jsd_heatmap_path
-    title = f"Jensen-Shannon Divergence ({config.jsd.method})"
+    # title = f"Jensen-Shannon Divergence ({config.jsd.method})"
     _render_heatmap(
         matrix_df,
         out_path,
-        title=title,
+        # title=title,
         xlabel="",
         ylabel="",
         double_column=double_column,
@@ -445,7 +444,6 @@ def moves_distribution(config: Config, top_n: Optional[int] = None) -> None:
     ax.set_xticks(list(x))
     ax.set_xticklabels(players, rotation=90, ha="center", fontsize=6)
 
-    # Follow IEEE-friendly labeling conventions
     ax.set_title("")  # Title omitted; prefer captioning in LaTeX
     ax.set_xlabel("Player", fontsize=8)
     ax.set_ylabel("Number of Moves", fontsize=8)
@@ -465,8 +463,7 @@ def stability_heatmap(config: Config, *, double_column: bool = True) -> None:
     Generate an asymmetric 'stability' heatmap comparing train-set players (rows)
     to test-set players (columns). The diagonal illustrates within-player similarity.
 
-    The caller can set `double_column=True` to produce a wider figure suitable for
-    spanning two IEEE columns.
+    The caller can set `double_column=True` to produce a wider figure
     """
     method = config.jsd.method
     kde = config.jsd.kde
@@ -506,56 +503,6 @@ def stability_heatmap(config: Config, *, double_column: bool = True) -> None:
         double_column=double_column,
         cmap=HEATMAP_CMAP,
         annot_fmt=".3f",
-    )
-
-
-def stability_heatmap_real_vs_pred(
-    config: Config, *, double_column: bool = True
-) -> None:
-    """
-    Generate a swapped-stability heatmap where rows represent REAL (test) players
-    and columns represent PREDICTED (model/train) players.
-    """
-    method = config.jsd.method
-    kde = config.jsd.kde
-
-    input_path = config.paths.get_full_cross_matrix_path(method, kde)
-    df = _safe_read_parquet(input_path)
-    if df is None:
-        logger.error(
-            "Real-vs-Pred stability heatmap aborted: input file missing (%s). Please run evaluation first.",
-            input_path,
-        )
-        return
-
-    # Determine ordering from test player column to keep the diagonal aligned when possible
-    try:
-        players_ordered = (
-            df.select("p_test").unique().sort("p_test").to_series().to_list()
-        )
-    except Exception:  # pragma: no cover - defensive fallback
-        players_ordered = None
-
-    # Pivot so rows = p_test (REAL), cols = p_train (PREDICTED)
-    matrix_pd = (
-        df.to_pandas()
-        .pivot(index="p_test", columns="p_train", values="distance")
-        .reindex(index=players_ordered, columns=players_ordered)
-    )
-
-    out_path = config.paths.method_jsd_stability_real_pred_template.format(
-        method=method
-    )
-    title = f"Real vs Predicted — {method}"
-    _render_heatmap(
-        matrix_pd,
-        out_path,
-        title=title,
-        xlabel="Predicted (Model) Players",
-        ylabel="Real (Test) Players",
-        double_column=double_column,
-        cmap=HEATMAP_CMAP,
-        annot_fmt=".4f",
     )
 
 
@@ -700,17 +647,6 @@ def generate_model_graphics(
             stability_heatmap(config, double_column=double_column)
         except Exception as exc:
             logger.error("Failed to generate stability heatmap for %s: %s", method, exc)
-
-        # Generate the swapped orientation Real vs Predicted
-        try:
-            # Call the new plotting routine with the same double_column preference
-            stability_heatmap_real_vs_pred(config, double_column=double_column)
-        except Exception as exc:
-            logger.error(
-                "Failed to generate Real-vs-Pred stability heatmap for %s: %s",
-                method,
-                exc,
-            )
 
     # Restore originals
     config.paths.jsd_heatmap_path = orig_jsd_path

@@ -5,14 +5,6 @@ fixed-length input vectors into a lower-dimensional latent representation and
 to reconstruct inputs from that latent code. The architecture is intentionally
 simple to facilitate experimentation with latent dimensionality, training
 objectives, and downstream analyses.
-
-Note
-----
-The decoder's final nonlinearity is a Sigmoid activation; this is appropriate
-only when input vectors have been normalized to the [0, 1] interval. If inputs
-are not scaled to this range, remove the final Sigmoid or substitute a more
-appropriate output activation (e.g., identity) and adapt the reconstruction
-loss accordingly.
 """
 
 import torch
@@ -53,11 +45,6 @@ class Autoencoder(nn.Module):
             nn.Linear(512, 1024),
             nn.ReLU(),
             nn.Linear(1024, input_dim),
-            # Note: The final decoder uses a Sigmoid under the assumption that
-            # inputs are normalized to the [0, 1] interval. If this assumption
-            # does not hold, remove or replace the Sigmoid and adapt the loss
-            # function (for example, use identity activation and MSE/BCE as
-            # appropriate).
             nn.Sigmoid(),
         )
 

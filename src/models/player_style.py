@@ -5,14 +5,6 @@ existing Elo-based embedding table (provided by the Maia model) with a small,
 learnable per-player embedding matrix. The combined embedding space enables the
 Maia model to represent both canonical Elo categories and repository-specific
 player identities within a single embedding tensor.
-
-Design notes
-- The class concatenates Maia's pre-existing Elo embedding indices with
-  additional indices reserved for project-specific players. Indices greater
-  than `max_maia_idx` are interpreted as project-specific players and are
-  looked up in the `players_embeddings` matrix.
-- Maia's original Elo embeddings are held fixed (non-trainable) while the
-  per-player embeddings are trainable parameters.
 """
 
 from typing import Any

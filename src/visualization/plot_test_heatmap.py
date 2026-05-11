@@ -4,9 +4,6 @@ This script reads the same parquet as `test.py` and reproduces the exact style
 used by the project's `jsd_heatmap` plotting routine (colors, fonts, sizes,
 annotation formatting, figure dimensions and colorbar settings).
 
-Usage:
-    python ML_Dead_Chess_ChampIONS/plot_test_heatmap.py
-
 Output:
     results/graphics/jsd_heatmap_exact_style.pdf
 """

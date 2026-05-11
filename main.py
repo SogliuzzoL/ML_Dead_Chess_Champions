@@ -1,9 +1,9 @@
 """Command-line entry point orchestrating discrete pipeline stages.
 
-This module exposes a simple CLI for executing individual stages of the
-ML_Dead_Chess_Champions pipeline (data acquisition, dataset construction,
-feature computation, model training, evaluation and visualization). Logging
-is used throughout to provide a reproducible instrumentation trace.
+This module exposes a simple CLI for executing individual stages of the pipeline
+(data acquisition, dataset construction, feature computation, model training,
+evaluation and visualization). Logging is used throughout to provide a reproducible
+instrumentation trace.
 """
 
 import argparse

@@ -233,7 +233,7 @@ def generate_training_hyperparameters_latex_table(config: Config) -> None:
 def generate_jsd_stability_table(config: Config) -> None:
     """Generate a LaTeX table with per-player diagonal JSD and deltas vs TEST.
 
-    Matches the style of `generate_accuracy_latex_table` so the JSD table is IEEE-ready:
+    Matches the style of `generate_accuracy_latex_table`:
     - Per-player rows with TEST (reference) and three Maia columns
     - An "Average" row at the bottom with bolded mean values and deltas
     """
@@ -284,7 +284,6 @@ def generate_jsd_stability_table(config: Config) -> None:
     latex_rows = []
     for player in players_order:
         ref = ref_vals.get(player, float("nan"))
-        # Use two decimals to reduce width for IEEE two-column figures
         ref_str = f"{ref:.2f}" if ref == ref else "N/A"
 
         cols = [ref_str]
