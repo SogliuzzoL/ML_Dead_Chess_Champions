@@ -4,8 +4,8 @@
 #SBATCH --error=logs/job_%j.err
 #SBATCH --partition=batch          # Partition to submit to
 #SBATCH --gpus=1                   # GPUs per node
-#SBATCH --cpus-per-task=4          # CPU cores allocated per task (for multiprocessing MCTS)
-#SBATCH --mem=32G                  # Memory allocation
+#SBATCH --cpus-per-task=24          # CPU cores allocated per task (for multiprocessing MCTS)
+#SBATCH --mem=64G                  # Memory allocation
 #SBATCH --time=4-00:00:00
 
 # Change to the job submission directory
