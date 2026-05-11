@@ -112,8 +112,23 @@ def compute_distances(
     distance_df.write_parquet(output_path)
 
 
-def compute_train_test_distances(config: Config, method: str, kde: bool = True) -> None:
-    """Evaluate the stability of an embedding method by comparing training and test splits."""
+def compute_train_test_distances(
+    config: Config,
+    method: str,
+    kde: bool = True,
+    n_bootstrap: int = 0,
+    ci_alpha: float = 0.05,
+) -> None:
+    """Evaluate the stability of an embedding method by comparing training and test splits.
+
+    Optionally perform a bootstrap over embeddings for each player to produce
+    confidence intervals (percentile CI) for the train/test Jensen-Shannon distance
+    on the diagonal (one value per player).
+
+    Parameters
+    - n_bootstrap: number of bootstrap resamples to perform per player (0 -> no bootstrap)
+    - ci_alpha: two-sided alpha for percentile CI (default 0.05 -> 95% CI)
+    """
 
     train_path = config.paths.get_embeddings_path(method, is_test=False)
     test_path = config.paths.get_embeddings_path(method, is_test=True)
@@ -154,12 +169,89 @@ def compute_train_test_distances(config: Config, method: str, kde: bool = True) 
         if len(emb_train) == 0 or len(emb_test) == 0:
             continue
 
-        if kde:
-            distance_js = compute_js_distance_continuous(emb_train, emb_test)
-        else:
-            distance_js = compute_js_distance(emb_train, emb_test, bounds=global_bounds)
+        # compute the point estimate on the full data
+        try:
+            if kde:
+                distance_js = compute_js_distance_continuous(emb_train, emb_test)
+            else:
+                distance_js = compute_js_distance(
+                    emb_train, emb_test, bounds=global_bounds
+                )
+        except Exception:
+            logger.debug(
+                "Failed to compute JSD for player %s (method=%s); marking NaN",
+                player,
+                method,
+            )
+            distance_js = float("nan")
 
-        distance_data.append({"player": player, "distance": distance_js})
+        record = {"player": player, "distance": distance_js}
+
+        # Optional bootstrap to compute CI for the diagonal distance
+        if n_bootstrap and len(emb_train) > 0 and len(emb_test) > 0:
+            bs_values = []
+            for _ in range(n_bootstrap):
+                # resample with replacement within each split, keeping same sample size
+                try:
+                    idx_t = np.random.choice(
+                        len(emb_train), size=len(emb_train), replace=True
+                    )
+                    idx_e = np.random.choice(
+                        len(emb_test), size=len(emb_test), replace=True
+                    )
+                    emb_t_bs = emb_train[idx_t]
+                    emb_e_bs = emb_test[idx_e]
+
+                    if kde:
+                        # KDE may fail on extremely small / degenerate samples; wrap defensively
+                        try:
+                            d_bs = compute_js_distance_continuous(emb_t_bs, emb_e_bs)
+                        except Exception:
+                            # fallback to histogram-based distance using global bounds
+                            d_bs = compute_js_distance(
+                                emb_t_bs, emb_e_bs, bounds=global_bounds
+                            )
+                    else:
+                        d_bs = compute_js_distance(
+                            emb_t_bs, emb_e_bs, bounds=global_bounds
+                        )
+
+                    bs_values.append(float(d_bs))
+                except Exception:
+                    # skip failed bootstrap iteration
+                    continue
+
+            if bs_values:
+                bs_arr = np.array(bs_values)
+                bs_mean = float(np.mean(bs_arr))
+                bs_std = (
+                    float(np.std(bs_arr, ddof=1)) if bs_arr.size > 1 else float("nan")
+                )
+                lower = float(np.percentile(bs_arr, 100 * (ci_alpha / 2)))
+                upper = float(np.percentile(bs_arr, 100 * (1 - ci_alpha / 2)))
+
+                record.update(
+                    {
+                        "bs_mean": bs_mean,
+                        "bs_std": bs_std,
+                        f"ci_lower_{int((1 - ci_alpha) * 100)}": lower,
+                        f"ci_upper_{int((1 - ci_alpha) * 100)}": upper,
+                        "bs_n": int(bs_arr.size),
+                    }
+                )
+            else:
+                # no successful bootstrap draws
+                record.update(
+                    {
+                        "bs_mean": float("nan"),
+                        "bs_std": float("nan"),
+                        f"ci_lower_{int((1 - ci_alpha) * 100)}": float("nan"),
+                        f"ci_upper_{int((1 - ci_alpha) * 100)}": float("nan"),
+                        "bs_n": 0,
+                    }
+                )
+
+        distance_data.append(record)
 
     distance_df = pl.DataFrame(distance_data)
     logger.info("Saving cross-split analysis to %s", output_path)
