@@ -14,16 +14,11 @@
 # Resource coherence and safety decisions (defaults chosen to be conservative):
 # - We set MCTS worker count to 1 by default to avoid multiple processes loading
 #   separate copies of the model on the same GPU which would cause GPU OOMs.
-# - We allocate a small number of CPU cores per task (4) to allow modest
-#   multiprocessing/IO without wasting cores.
-# - Default batch size is conservative (128) to limit per-process GPU memory.
-# - Adjust these via CLI options below if you know your hardware can handle more.
-#
-# Notes about GPUs and SBATCH options:
-# - Different clusters accept different SBATCH flags for GPUs. Some accept
-#   `--gpus=1`, some `--gres=gpu:1`, others require a specific device name.
-# - By default this script does NOT request a partition so the scheduler will
-#   use the default partition. You can pass --partition <name> to select one.
+# - We allocate a small number of CPU cores per task (2) to be compatible with
+#   small nodes.
+# - Script does NOT request memory by default; do not pass --mem unless you
+#   know the cluster supports it. This avoids "Memory specification cannot be
+#   satisfied" errors on small clusters.
 
 # -------------------------
 # User-configurable grid
@@ -39,13 +34,13 @@ SUBSAMPLE_FRAC=1.0
 PARTITION=""   # empty => don't pass --partition, let scheduler use default
 # To request GPUs pass --gpu-arg "--gres=gpu:1" when calling the script
 GPU_SBATCH_ARG=""
-CPUS_PER_TASK=4   # CPUs allocated to the job on the node
-MEM="8G"
+CPUS_PER_TASK=2   # CPUs allocated to the job on the node (default small)
+MEM=""          # empty => do not pass --mem
 TIME="4-00:00:00"
 
 # MCTS internal params (safe defaults)
 MCTS_NUM_WORKERS=1   # number of processes that will call the model (1 avoids multiple GPU copies)
-MCTS_BATCH_SIZE=128  # batch size per worker
+MCTS_BATCH_SIZE=64   # batch size per worker (smaller by default)
 
 # Project paths: use current working directory as project root by default
 PROJECT_ROOT="$(pwd)"
@@ -57,6 +52,11 @@ mkdir -p "$LOG_DIR" 2>/dev/null || true
 ONLY_FT=0
 ONLY_NOFT=0
 NO_GPU=0
+
+# Allow running a single grid cell via CLI (for quick tests)
+SINGLE_SIM=""
+SINGLE_C=""
+SINGLE_THR=""
 
 # Optional: allow overriding via script args
 while [[ $# -gt 0 ]]; do
@@ -83,6 +83,12 @@ while [[ $# -gt 0 ]]; do
       MCTS_NUM_WORKERS="$2"; shift 2 ;;
     --mcts-batch-size)
       MCTS_BATCH_SIZE="$2"; shift 2 ;;
+    --single-sim)
+      SINGLE_SIM="$2"; shift 2 ;;
+    --single-c)
+      SINGLE_C="$2"; shift 2 ;;
+    --single-thr)
+      SINGLE_THR="$2"; shift 2 ;;
     *)
       echo "Unknown option $1"; exit 1 ;;
   esac
@@ -95,6 +101,17 @@ fi
 # If NO_GPU requested, clear GPU SBATCH arg
 if [[ "$NO_GPU" -eq 1 ]]; then
   GPU_SBATCH_ARG=""
+fi
+
+# If single cell args provided, restrict the grid accordingly
+if [[ -n "$SINGLE_SIM" ]]; then
+  NUM_SIM_LIST=($SINGLE_SIM)
+fi
+if [[ -n "$SINGLE_C" ]]; then
+  C_PUCT_LIST=($SINGLE_C)
+fi
+if [[ -n "$SINGLE_THR" ]]; then
+  THR_LIST=($SINGLE_THR)
 fi
 
 # Sanity checks / warnings
@@ -134,7 +151,11 @@ for sim in "${NUM_SIM_LIST[@]}"; do
         if [[ ${#GPU_ARG_TOKENS[@]} -gt 0 && -n "${GPU_ARG_TOKENS[0]}" ]]; then
           SBATCH_CMD+=("${GPU_ARG_TOKENS[@]}")
         fi
-        SBATCH_CMD+=(--cpus-per-task=$CPUS_PER_TASK --mem=$MEM --time=$TIME --wrap "$WRAP_CMD")
+        SBATCH_CMD+=(--cpus-per-task=$CPUS_PER_TASK)
+        if [[ -n "$MEM" ]]; then
+          SBATCH_CMD+=(--mem=$MEM)
+        fi
+        SBATCH_CMD+=(--time=$TIME --wrap "$WRAP_CMD")
 
         SBATCH_OUT=$("${SBATCH_CMD[@]}" 2>&1)
         SBATCH_RC=$?
@@ -163,7 +184,11 @@ for sim in "${NUM_SIM_LIST[@]}"; do
         if [[ ${#GPU_ARG_TOKENS[@]} -gt 0 && -n "${GPU_ARG_TOKENS[0]}" ]]; then
           SBATCH_CMD+=("${GPU_ARG_TOKENS[@]}")
         fi
-        SBATCH_CMD+=(--cpus-per-task=$CPUS_PER_TASK --mem=$MEM --time=$TIME --wrap "$WRAP_CMD")
+        SBATCH_CMD+=(--cpus-per-task=$CPUS_PER_TASK)
+        if [[ -n "$MEM" ]]; then
+          SBATCH_CMD+=(--mem=$MEM)
+        fi
+        SBATCH_CMD+=(--time=$TIME --wrap "$WRAP_CMD")
 
         SBATCH_OUT=$("${SBATCH_CMD[@]}" 2>&1)
         SBATCH_RC=$?
