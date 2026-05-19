@@ -38,8 +38,8 @@ SUBSAMPLE_FRAC=1.0
 
 # Per-job resources (conservative defaults)
 PARTITION="batch"
-# By default allocate 1 GPU via SBATCH argument. You can override.
-GPU_SBATCH_ARG="--gres=gpu:1"
+# By default do NOT request a GPU; pass --gpu-arg "--gres=gpu:1" (or other) to request GPUs
+GPU_SBATCH_ARG=""
 CPUS_PER_TASK=4   # CPUs allocated to the job on the node
 MEM="64G"
 TIME="4-00:00:00"
@@ -126,7 +126,7 @@ for sim in "${NUM_SIM_LIST[@]}"; do
         CLI_ARGS=(evaluate_mcts_params --config "$CONFIG_PATH" --mcts-num-sim "$sim" --mcts-c-puct "$c" --mcts-threshold "$thr" --mcts-subsample-frac "$SUBSAMPLE_FRAC" --mcts-num-workers "$MCTS_NUM_WORKERS" --mcts-batch-size "$MCTS_BATCH_SIZE")
         # FT variant: do NOT add --mcts-disable-player-embeddings
 
-        WRAP_CMD=(cd "$PROJECT_ROOT" && uv run main.py --config "$CONFIG_PATH" ${CLI_ARGS[*]})
+        WRAP_CMD="cd '$PROJECT_ROOT' && uv run main.py --config '$CONFIG_PATH' ${CLI_ARGS[*]}"
 
         # Build sbatch command as array to safely include GPU arg tokens
         SBATCH_CMD=(sbatch --job-name="$JOB_NAME" --output="$OUT_LOG" --error="$ERR_LOG" --partition="$PARTITION")
@@ -134,11 +134,16 @@ for sim in "${NUM_SIM_LIST[@]}"; do
         if [[ ${#GPU_ARG_TOKENS[@]} -gt 0 && -n "${GPU_ARG_TOKENS[0]}" ]]; then
           SBATCH_CMD+=("${GPU_ARG_TOKENS[@]}")
         fi
-        SBATCH_CMD+=(--cpus-per-task=$CPUS_PER_TASK --mem=$MEM --time=$TIME --wrap "${WRAP_CMD[*]}")
+        SBATCH_CMD+=(--cpus-per-task=$CPUS_PER_TASK --mem=$MEM --time=$TIME --wrap "$WRAP_CMD")
 
-        "${SBATCH_CMD[@]}"
-
-        echo "Submitted job #$count: $JOB_NAME"
+        SBATCH_OUT=$("${SBATCH_CMD[@]}" 2>&1)
+        SBATCH_RC=$?
+        if [[ $SBATCH_RC -eq 0 ]]; then
+          echo "Submitted job: $JOB_NAME - sbatch: $SBATCH_OUT"
+          count=$((count + 1))
+        else
+          echo "Failed to submit $JOB_NAME: $SBATCH_OUT" >&2
+        fi
       fi
 
       # no-FT variant (disable player embeddings)
@@ -150,7 +155,7 @@ for sim in "${NUM_SIM_LIST[@]}"; do
 
         CLI_ARGS=(evaluate_mcts_params --config "$CONFIG_PATH" --mcts-num-sim "$sim" --mcts-c-puct "$c" --mcts-threshold "$thr" --mcts-subsample-frac "$SUBSAMPLE_FRAC" --mcts-num-workers "$MCTS_NUM_WORKERS" --mcts-batch-size "$MCTS_BATCH_SIZE" --mcts-disable-player-embeddings)
 
-        WRAP_CMD=(cd "$PROJECT_ROOT" && uv run main.py --config "$CONFIG_PATH" ${CLI_ARGS[*]})
+        WRAP_CMD="cd '$PROJECT_ROOT' && uv run main.py --config '$CONFIG_PATH' ${CLI_ARGS[*]}"
 
         SBATCH_CMD=(sbatch --job-name="$JOB_NAME" --output="$OUT_LOG" --error="$ERR_LOG" --partition="$PARTITION")
         if [[ ${#GPU_ARG_TOKENS[@]} -gt 0 && -n "${GPU_ARG_TOKENS[0]}" ]]; then
