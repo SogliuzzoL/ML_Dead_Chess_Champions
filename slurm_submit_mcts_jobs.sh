@@ -18,6 +18,13 @@
 #   multiprocessing/IO without wasting cores.
 # - Default batch size is conservative (128) to limit per-process GPU memory.
 # - Adjust these via CLI options below if you know your hardware can handle more.
+#
+# Notes about GPUs and SBATCH options:
+# - Different clusters accept different SBATCH flags for GPUs. Some accept
+#   `--gpus=1`, some `--gres=gpu:1`, others require a specific device name.
+# - By default this script uses `--gres=gpu:1`. If your cluster uses a
+#   different syntax or you want to run without GPUs, pass `--no-gpu` or
+#   `--gpu-arg '<your-sbatch-gpu-arg>'` to override.
 
 # -------------------------
 # User-configurable grid
@@ -31,24 +38,26 @@ SUBSAMPLE_FRAC=1.0
 
 # Per-job resources (conservative defaults)
 PARTITION="batch"
-GPUS=1
+# By default allocate 1 GPU via SBATCH argument. You can override.
+GPU_SBATCH_ARG="--gres=gpu:1"
 CPUS_PER_TASK=4   # CPUs allocated to the job on the node
-MEM="16G"
+MEM="64G"
 TIME="4-00:00:00"
 
 # MCTS internal params (safe defaults)
 MCTS_NUM_WORKERS=1   # number of processes that will call the model (1 avoids multiple GPU copies)
 MCTS_BATCH_SIZE=128  # batch size per worker
 
-# Project paths (adjust if your layout differs)
-PROJECT_ROOT="/home/sogliuzzol/Projects/ChessBehaviors"
+# Project paths: use current working directory as project root by default
+PROJECT_ROOT="$(pwd)"
 CONFIG_PATH="config/default.yml"
 LOG_DIR="$PROJECT_ROOT/logs/mcts"
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" 2>/dev/null || true
 
 # Optional flags controlling which variants to submit. By default submit both.
 ONLY_FT=0
 ONLY_NOFT=0
+NO_GPU=0
 
 # Optional: allow overriding via script args
 while [[ $# -gt 0 ]]; do
@@ -61,8 +70,10 @@ while [[ $# -gt 0 ]]; do
       SUBSAMPLE_FRAC="$2"; shift 2 ;;
     --partition)
       PARTITION="$2"; shift 2 ;;
-    --gpus)
-      GPUS="$2"; shift 2 ;;
+    --gpu-arg)
+      GPU_SBATCH_ARG="$2"; shift 2 ;;
+    --no-gpu)
+      NO_GPU=1; shift ;;
     --cpus)
       CPUS_PER_TASK="$2"; shift 2 ;;
     --mem)
@@ -82,10 +93,18 @@ if [[ "$ONLY_FT" -eq 1 && "$ONLY_NOFT" -eq 1 ]]; then
   echo "Conflicting options: --only-ft and --only-noft cannot both be set."; exit 1
 fi
 
-# Sanity checks / warnings
-if [[ $MCTS_NUM_WORKERS -gt 1 && $GPUS -lt $MCTS_NUM_WORKERS ]]; then
-  echo "Warning: MCTS_NUM_WORKERS=$MCTS_NUM_WORKERS but allocated GPUS=$GPUS. Multiple workers will share the same GPU and may OOM. Consider increasing --gpus or reducing --mcts-workers." >&2
+# If NO_GPU requested, clear GPU SBATCH arg
+if [[ "$NO_GPU" -eq 1 ]]; then
+  GPU_SBATCH_ARG=""
 fi
+
+# Sanity checks / warnings
+if [[ -n "$GPU_SBATCH_ARG" && $MCTS_NUM_WORKERS -gt 1 ]]; then
+  echo "Warning: MCTS_NUM_WORKERS=$MCTS_NUM_WORKERS and GPU requested. Multiple workers may share the GPU and cause OOM. Consider setting --mcts-workers 1 or request more GPUs via --gpu-arg." >&2
+fi
+
+# Prepare SBATCH GPU option tokens (split into array for safe expansion)
+IFS=' ' read -r -a GPU_ARG_TOKENS <<< "$GPU_SBATCH_ARG"
 
 # Submit jobs
 count=0
@@ -107,17 +126,17 @@ for sim in "${NUM_SIM_LIST[@]}"; do
         CLI_ARGS=(evaluate_mcts_params --config "$CONFIG_PATH" --mcts-num-sim "$sim" --mcts-c-puct "$c" --mcts-threshold "$thr" --mcts-subsample-frac "$SUBSAMPLE_FRAC" --mcts-num-workers "$MCTS_NUM_WORKERS" --mcts-batch-size "$MCTS_BATCH_SIZE")
         # FT variant: do NOT add --mcts-disable-player-embeddings
 
-        WRAP_CMD="cd $PROJECT_ROOT && uv run main.py --config $CONFIG_PATH ${CLI_ARGS[*]}"
+        WRAP_CMD=(cd "$PROJECT_ROOT" && uv run main.py --config "$CONFIG_PATH" ${CLI_ARGS[*]})
 
-        sbatch --job-name="$JOB_NAME" \
-               --output="$OUT_LOG" \
-               --error="$ERR_LOG" \
-               --partition="$PARTITION" \
-               --gpus=$GPUS \
-               --cpus-per-task=$CPUS_PER_TASK \
-               --mem=$MEM \
-               --time=$TIME \
-               --wrap="$WRAP_CMD"
+        # Build sbatch command as array to safely include GPU arg tokens
+        SBATCH_CMD=(sbatch --job-name="$JOB_NAME" --output="$OUT_LOG" --error="$ERR_LOG" --partition="$PARTITION")
+        # append GPU tokens if present
+        if [[ ${#GPU_ARG_TOKENS[@]} -gt 0 && -n "${GPU_ARG_TOKENS[0]}" ]]; then
+          SBATCH_CMD+=("${GPU_ARG_TOKENS[@]}")
+        fi
+        SBATCH_CMD+=(--cpus-per-task=$CPUS_PER_TASK --mem=$MEM --time=$TIME --wrap "${WRAP_CMD[*]}")
+
+        "${SBATCH_CMD[@]}"
 
         echo "Submitted job #$count: $JOB_NAME"
       fi
@@ -131,17 +150,15 @@ for sim in "${NUM_SIM_LIST[@]}"; do
 
         CLI_ARGS=(evaluate_mcts_params --config "$CONFIG_PATH" --mcts-num-sim "$sim" --mcts-c-puct "$c" --mcts-threshold "$thr" --mcts-subsample-frac "$SUBSAMPLE_FRAC" --mcts-num-workers "$MCTS_NUM_WORKERS" --mcts-batch-size "$MCTS_BATCH_SIZE" --mcts-disable-player-embeddings)
 
-        WRAP_CMD="cd $PROJECT_ROOT && uv run main.py --config $CONFIG_PATH ${CLI_ARGS[*]}"
+        WRAP_CMD=(cd "$PROJECT_ROOT" && uv run main.py --config "$CONFIG_PATH" ${CLI_ARGS[*]})
 
-        sbatch --job-name="$JOB_NAME" \
-               --output="$OUT_LOG" \
-               --error="$ERR_LOG" \
-               --partition="$PARTITION" \
-               --gpus=$GPUS \
-               --cpus-per-task=$CPUS_PER_TASK \
-               --mem=$MEM \
-               --time=$TIME \
-               --wrap="$WRAP_CMD"
+        SBATCH_CMD=(sbatch --job-name="$JOB_NAME" --output="$OUT_LOG" --error="$ERR_LOG" --partition="$PARTITION")
+        if [[ ${#GPU_ARG_TOKENS[@]} -gt 0 && -n "${GPU_ARG_TOKENS[0]}" ]]; then
+          SBATCH_CMD+=("${GPU_ARG_TOKENS[@]}")
+        fi
+        SBATCH_CMD+=(--cpus-per-task=$CPUS_PER_TASK --mem=$MEM --time=$TIME --wrap "${WRAP_CMD[*]}")
+
+        "${SBATCH_CMD[@]}"
 
         echo "Submitted job #$count: $JOB_NAME"
       fi
