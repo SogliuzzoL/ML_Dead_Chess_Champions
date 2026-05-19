@@ -40,7 +40,7 @@ PARTITION=""   # empty => don't pass --partition, let scheduler use default
 # To request GPUs pass --gpu-arg "--gres=gpu:1" when calling the script
 GPU_SBATCH_ARG=""
 CPUS_PER_TASK=4   # CPUs allocated to the job on the node
-MEM="64G"
+MEM="8G"
 TIME="4-00:00:00"
 
 # MCTS internal params (safe defaults)
