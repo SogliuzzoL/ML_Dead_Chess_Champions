@@ -38,9 +38,9 @@ CPUS_PER_TASK=8   # CPUs allocated to the job on the node (default small)
 MEM=""          # empty => do not pass --mem
 TIME="5-00:00:00"
 
-# MCTS internal params (safe defaults)
-MCTS_NUM_WORKERS=1   # number of processes that will call the model (1 avoids multiple GPU copies)
-MCTS_BATCH_SIZE=64   # batch size per worker (smaller by default)
+# MCTS internal params
+MCTS_NUM_WORKERS=4
+MCTS_BATCH_SIZE=256   # batch size per worker
 
 # Project paths: use current working directory as project root by default
 PROJECT_ROOT="$(pwd)"
