@@ -34,9 +34,9 @@ SUBSAMPLE_FRAC=1.0
 PARTITION=""   # empty => don't pass --partition, let scheduler use default
 # To request GPUs pass --gpu-arg "--gres=gpu:1" when calling the script
 GPU_SBATCH_ARG=""
-CPUS_PER_TASK=2   # CPUs allocated to the job on the node (default small)
+CPUS_PER_TASK=8   # CPUs allocated to the job on the node (default small)
 MEM=""          # empty => do not pass --mem
-TIME="4-00:00:00"
+TIME="5-00:00:00"
 
 # MCTS internal params (safe defaults)
 MCTS_NUM_WORKERS=1   # number of processes that will call the model (1 avoids multiple GPU copies)
