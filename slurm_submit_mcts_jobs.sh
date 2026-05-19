@@ -34,12 +34,12 @@ SUBSAMPLE_FRAC=1.0
 PARTITION=""   # empty => don't pass --partition, let scheduler use default
 # To request GPUs pass --gpu-arg "--gres=gpu:1" when calling the script
 GPU_SBATCH_ARG=""
-CPUS_PER_TASK=8   # CPUs allocated to the job on the node (default small)
+CPUS_PER_TASK=2   # CPUs allocated to the job on the node (default small)
 MEM=""          # empty => do not pass --mem
 TIME="5-00:00:00"
 
 # MCTS internal params
-MCTS_NUM_WORKERS=4
+MCTS_NUM_WORKERS=1
 MCTS_BATCH_SIZE=256   # batch size per worker
 
 # Project paths: use current working directory as project root by default
