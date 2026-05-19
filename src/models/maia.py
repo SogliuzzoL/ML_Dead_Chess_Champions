@@ -40,33 +40,62 @@ class MaiaEngine:
         Application configuration providing player lists and filesystem paths.
     model_type : str, optional
         Identifier of the pre-trained Maia backbone to load (default: "rapid").
+    use_player_embeddings : bool, optional
+        Whether to attach project-specific per-player embeddings on top of the
+        Maia Elo embedding table. When False, all players are mapped to the
+        canonical Maia base Elo category (effectively disabling the fine-tuned
+        per-player embeddings during evaluation).
     """
 
-    def __init__(self, config: Config, model_type="rapid"):
+    def __init__(
+        self,
+        config: Config,
+        model_type: str = "rapid",
+        use_player_embeddings: bool = True,
+    ):
         self.config = config
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = model.from_pretrained(model_type, self.device)
         self.prepare = inference.prepare()
 
-        n_players = len(self.config.data.players)
-        self.model.elo_embedding = PlayerStyleEmbedding(
-            self.model.elo_embedding, n_players
-        ).to(self.device)
+        # When requested, wrap Maia's Elo embedding with a small per-player
+        # embedding matrix. Otherwise, keep the original Maia embedding and map
+        # all configured players to the canonical base Elo category.
+        if use_player_embeddings:
+            n_players = len(self.config.data.players)
+            self.model.elo_embedding = PlayerStyleEmbedding(
+                self.model.elo_embedding, n_players
+            ).to(self.device)
 
-        embed_path = self.config.paths.champions_embeddings_path
-        if os.path.exists(embed_path):
-            state_dict = torch.load(embed_path, map_location=self.device)
-            self.model.elo_embedding.players_embeddings.load_state_dict(state_dict)
-            logger.info(f"Player embeddings loaded from {embed_path}.")
+            embed_path = self.config.paths.champions_embeddings_path
+            if os.path.exists(embed_path):
+                state_dict = torch.load(embed_path, map_location=self.device)
+                self.model.elo_embedding.players_embeddings.load_state_dict(state_dict)
+                logger.info(f"Player embeddings loaded from {embed_path}.")
+            else:
+                logger.warning(f"Player embeddings not found at {embed_path}.")
+
+            self.player_to_idx = {
+                player_name: idx + self.model.elo_embedding.max_maia_idx + 1
+                for idx, player_name in enumerate(self.config.data.players.values())
+            }
         else:
-            logger.warning(f"Player embeddings not found at {embed_path}.")
+            # Do not modify the Maia model's embedding. Map every configured
+            # player to the canonical Maia base Elo category so that predictions
+            # use the backbone model without project-specific embeddings.
+            _, elo_dict, _ = self.prepare
+            # Use a representative Elo value (2500) mapped to the Maia category
+            # index as the default base index.
+            base_idx = inference.map_to_category(2500, elo_dict)
+            self.player_to_idx = {
+                player_name: int(base_idx)
+                for player_name in self.config.data.players.values()
+            }
+            logger.info(
+                "MaiaEngine initialized without per-player embeddings; using base Elo category for all players."
+            )
 
-        self.player_to_idx = {
-            player_name: idx + self.model.elo_embedding.max_maia_idx + 1
-            for idx, player_name in enumerate(self.config.data.players.values())
-        }
-
-    def get_board_from_fen(self, fen, pgn):
+    def get_board_from_fen(self, fen: str, pgn: str):
         """Reconstruct a chess.Board from either a FEN string or a PGN text.
 
         If a non-empty PGN string is supplied and is parsable, the board is
@@ -104,11 +133,11 @@ class MaiaEngine:
 
     def predict_mcts(
         self,
-        fen,
-        pgn,
-        num_simulations=1000,
-        c_puct=1.5,
-        threshold=0.01,
+        fen: str,
+        pgn: str,
+        num_simulations: int = 1000,
+        c_puct: float = 1.5,
+        threshold: float = 0.01,
         active_elo: int | str = 2500,
         opponent_elo: int | str = 2500,
     ):
@@ -118,30 +147,6 @@ class MaiaEngine:
         MCTS instance that delegates child evaluation to `predict_move`, and
         returns the MCTS-selected root move together with the move-probability
         dictionary produced at the root.
-
-        Parameters
-        ----------
-        fen : str
-            FEN representation of the current board position.
-        pgn : str
-            Optional PGN text that can be used to reconstruct the board.
-        num_simulations : int
-            Number of MCTS simulations to run.
-        c_puct : float
-            Exploration constant used in the UCT-like selection formula.
-        threshold : float
-            Probability threshold below which child moves are pruned.
-        active_elo : int | str
-            Style identifier or Elo value for the active player.
-        opponent_elo : int | str
-            Style identifier or Elo value for the opponent.
-
-        Returns
-        -------
-        tuple
-            A pair (best_move, result) where `best_move` is the move selected at
-            the root and `result` is a dict mapping candidate moves to model
-            probabilities.
         """
         board = self.get_board_from_fen(fen, pgn)
         mcts = MCTS(self.predict_move)
@@ -173,7 +178,7 @@ class MaiaEngine:
         return inference.map_to_category(int(val), elo_dict)
 
     def predict_move(
-        self, fen, active_elo: int | str = 2500, opponent_elo: int | str = 2500
+        self, fen: str, active_elo: int | str = 2500, opponent_elo: int | str = 2500
     ):
         """Predict move probabilities and a scalar evaluation for a single position.
 
@@ -182,22 +187,6 @@ class MaiaEngine:
         active and opponent players, and returns a sorted dictionary of legal
         moves with their associated probabilities as well as the scalar value
         predicted by the Maia value head.
-
-        Parameters
-        ----------
-        fen : str
-            FEN string representing the position to evaluate.
-        active_elo : int | str
-            Style identifier or Elo value for the active player.
-        opponent_elo : int | str
-            Style identifier or Elo value for the opponent.
-
-        Returns
-        -------
-        tuple
-            A triple (best_move, move_probabilities, board_value) where
-            `move_probabilities` is an ordered mapping from UCI moves to probabilities
-            and `board_value` is the scalar evaluation returned by Maia.
         """
         board = chess.Board(fen)
         is_mirrored = False

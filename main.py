@@ -56,6 +56,49 @@ def main():
         help="Tournament format to simulate (default: single_elimination)",
     )
 
+    # Options specific to the MCTS grid-search stage (allow CLI single-cell runs)
+    parser.add_argument(
+        "--mcts-num-sim",
+        type=int,
+        default=None,
+        help="Run a single grid cell: number of simulations",
+    )
+    parser.add_argument(
+        "--mcts-c-puct",
+        type=float,
+        default=None,
+        help="Run a single grid cell: c_puct value",
+    )
+    parser.add_argument(
+        "--mcts-threshold",
+        type=float,
+        default=None,
+        help="Run a single grid cell: threshold value",
+    )
+    parser.add_argument(
+        "--mcts-disable-player-embeddings",
+        action="store_true",
+        help="Disable use of project-specific player embeddings during MCTS runs",
+    )
+    parser.add_argument(
+        "--mcts-subsample-frac",
+        type=float,
+        default=1.0,
+        help="Fraction of test set to use (default 1.0 = full set)",
+    )
+    parser.add_argument(
+        "--mcts-num-workers",
+        type=int,
+        default=2,
+        help="Number of worker processes to spawn for MCTS",
+    )
+    parser.add_argument(
+        "--mcts-batch-size",
+        type=int,
+        default=256,
+        help="Batch size used by each worker when calling run_batch",
+    )
+
     args = parser.parse_args()
     config = Config.from_yaml(args.config)
 
@@ -133,7 +176,16 @@ def main():
         from src.evaluation.evaluate_mcts_params import evaluate_mcts_params
 
         logger.info("Commencing MCTS parameters grid search and evaluation...")
-        evaluate_mcts_params(config)
+        evaluate_mcts_params(
+            config,
+            subsample_frac=args.mcts_subsample_frac,
+            num_workers=args.mcts_num_workers,
+            batch_size=args.mcts_batch_size,
+            use_player_embeddings=not args.mcts_disable_player_embeddings,
+            single_num_sim=args.mcts_num_sim,
+            single_c_puct=args.mcts_c_puct,
+            single_threshold=args.mcts_threshold,
+        )
 
     if args.step == "generate_mcts_heatmaps":
         from src.evaluation.generate_mcts_heatmaps import (

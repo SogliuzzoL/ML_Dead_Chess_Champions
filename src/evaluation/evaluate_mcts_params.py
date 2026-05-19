@@ -47,13 +47,14 @@ def mcts_worker_params(
     worker_id: int,
     c_puct: float,
     threshold: float,
+    use_player_embeddings: bool = True,
 ) -> Tuple[List[str], List[str]]:
     """Worker executed in a separate process to run batched MCTS on its chunk.
 
     Returns a tuple of (best_moves_list, root_probs_json_list).
     """
 
-    engine = MaiaEngine(config)
+    engine = MaiaEngine(config, use_player_embeddings=use_player_embeddings)
     mcts_manager = BatchedMCTSManager(engine, c_puct=c_puct, threshold=threshold)
 
     all_best_moves = []
@@ -83,22 +84,40 @@ def mcts_worker_params(
 
 def evaluate_mcts_params(
     config: Config,
-    subsample_frac: float = 0.05,
+    subsample_frac: float = 1.0,
     num_workers: int = 2,
     batch_size: int = 256,
     param_grid: dict | None = None,
     output_prefix: str = "mcts_grid",
+    use_player_embeddings: bool = True,
+    single_num_sim: int | None = None,
+    single_c_puct: float | None = None,
+    single_threshold: float | None = None,
 ) -> None:
-    """Run a grid search over MCTS parameters on a subsample of the test set.
+    """Run a grid search over MCTS parameters on (optionally) a subsample of the test set.
 
     Args:
         config: Project configuration object.
         subsample_frac: Fraction of the test set to sample for each evaluation run.
+                       Use 1.0 (default) to run on the full test set.
         num_workers: Number of worker processes to spawn for MCTS.
         batch_size: Batch size used by each worker when calling run_batch.
         param_grid: Dictionary with lists for keys `num_simulations`, `c_puct`, and `threshold`.
         output_prefix: Prefix for output files written to `config.paths.evaluation_dir`.
+        use_player_embeddings: Whether to use project-specific per-player embeddings
+                               when initializing the Maia engine. Set to False to run
+                               MCTS with the base Maia model (no fine-tuned embeddings).
     """
+
+    # Allow overriding a single run via environment variables so each grid cell
+    # can be launched independently (useful when scheduling many jobs on a cluster).
+    env_num = os.environ.get("MCTS_NUM_SIM")
+    env_c = os.environ.get("MCTS_C_PUCT")
+    env_thr = os.environ.get("MCTS_THRESHOLD")
+    env_use_emb = os.environ.get("MCTS_USE_PLAYER_EMBEDDINGS")
+
+    if env_use_emb is not None:
+        use_player_embeddings = env_use_emb not in ("0", "false", "False")
 
     if param_grid is None:
         param_grid = {
@@ -107,25 +126,51 @@ def evaluate_mcts_params(
             "threshold": [0.0, 0.01, 0.05, 0.1],
         }
 
+    # If single-run environment variables are provided, restrict the grid to that single combo.
+    if env_num is not None and env_c is not None and env_thr is not None:
+        try:
+            num_val = int(env_num)
+            c_val = float(env_c)
+            thr_val = float(env_thr)
+            param_grid = {
+                "num_simulations": [num_val],
+                "c_puct": [c_val],
+                "threshold": [thr_val],
+            }
+            # include the run identifier in the prefix for clarity
+            output_prefix = f"{output_prefix}_sim{num_val}_c{str(c_val).replace('.', '_')}_thr{str(thr_val).replace('.', '_')}"
+            logger.info(
+                "Detected single-run environment variables; will execute only that configuration."
+            )
+        except Exception:
+            logger.warning(
+                "Failed to parse single-run MCTS environment variables; proceeding with full grid."
+            )
+
     eval_dir = Path(config.paths.evaluation_dir)
     eval_dir.mkdir(parents=True, exist_ok=True)
 
     df_test = pl.read_parquet(config.paths.test_set_path)
     n_total = df_test.height
-    n_sub = max(1, int(math.ceil(n_total * subsample_frac)))
 
-    logger.info(f"Total test examples: {n_total}. Using subsample of {n_sub}.")
+    # If subsample_frac >= 1.0, use the full set.
+    if subsample_frac >= 1.0:
+        df_sub = df_test
+        n_sub = n_total
+    else:
+        n_sub = max(1, int(math.ceil(n_total * subsample_frac)))
+        logger.info(f"Total test examples: {n_total}. Using subsample of {n_sub}.")
 
-    # For reproducible subsampling
-    rng = np.random.default_rng(seed=42)
-    indices = rng.choice(n_total, size=n_sub, replace=False)
+        # For reproducible subsampling
+        rng = np.random.default_rng(seed=42)
+        indices = rng.choice(n_total, size=n_sub, replace=False)
 
-    # Polars DataFrame: use with_row_index (replacement for deprecated with_row_count)
-    # Default index column name is 'index', but provide '__row_idx' for clarity and compatibility.
-    df_test_idx = df_test.with_row_index("__row_idx")
-    df_sub = df_test_idx.filter(pl.col("__row_idx").is_in(indices.tolist())).drop(
-        "__row_idx"
-    )
+        # Polars DataFrame: use with_row_index (replacement for deprecated with_row_count)
+        # Default index column name is 'index', but provide '__row_idx' for clarity and compatibility.
+        df_test_idx = df_test.with_row_index("__row_idx")
+        df_sub = df_test_idx.filter(pl.col("__row_idx").is_in(indices.tolist())).drop(
+            "__row_idx"
+        )
 
     fens_list = df_sub["fen"].to_list()
     players_list = df_sub["player_name"].to_list()
@@ -136,7 +181,7 @@ def evaluate_mcts_params(
     num_workers = max(1, min(int(num_workers), available_cpus, 4))
 
     # Build chunks for workers
-    chunk_size = math.ceil(len(fens_list) / num_workers)
+    chunk_size = math.ceil(len(fens_list) / num_workers) if len(fens_list) > 0 else 0
     chunks = []
     w_id = 0
     for i in range(0, len(fens_list), chunk_size):
@@ -189,6 +234,7 @@ def evaluate_mcts_params(
                                 worker_id,
                                 c,
                                 thr,
+                                use_player_embeddings,
                             )
                         )
 
@@ -197,7 +243,7 @@ def evaluate_mcts_params(
                         mcts_preds.extend(b_moves)
                         mcts_probs.extend(b_probs)
 
-                # Ensure length matches subsample
+                # Ensure length matches (sub)dataset
                 if len(mcts_preds) != len(true_moves):
                     logger.warning(
                         f"Produced {len(mcts_preds)} preds but expected {len(true_moves)}. Truncating or padding with None."
