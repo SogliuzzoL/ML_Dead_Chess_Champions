@@ -22,9 +22,8 @@
 # Notes about GPUs and SBATCH options:
 # - Different clusters accept different SBATCH flags for GPUs. Some accept
 #   `--gpus=1`, some `--gres=gpu:1`, others require a specific device name.
-# - By default this script uses `--gres=gpu:1`. If your cluster uses a
-#   different syntax or you want to run without GPUs, pass `--no-gpu` or
-#   `--gpu-arg '<your-sbatch-gpu-arg>'` to override.
+# - By default this script does NOT request a partition so the scheduler will
+#   use the default partition. You can pass --partition <name> to select one.
 
 # -------------------------
 # User-configurable grid
@@ -37,8 +36,8 @@ THR_LIST=(0.0 0.01 0.05 0.1)
 SUBSAMPLE_FRAC=1.0
 
 # Per-job resources (conservative defaults)
-PARTITION="batch"
-# By default do NOT request a GPU; pass --gpu-arg "--gres=gpu:1" (or other) to request GPUs
+PARTITION=""   # empty => don't pass --partition, let scheduler use default
+# To request GPUs pass --gpu-arg "--gres=gpu:1" when calling the script
 GPU_SBATCH_ARG=""
 CPUS_PER_TASK=4   # CPUs allocated to the job on the node
 MEM="64G"
@@ -118,7 +117,6 @@ for sim in "${NUM_SIM_LIST[@]}"; do
 
       # FT variant (use player embeddings)
       if [[ "$ONLY_NOFT" -eq 0 ]]; then
-        count=$((count + 1))
         JOB_NAME="mcts_sim${sim}_c${safe_c}_thr${safe_thr}_ft"
         OUT_LOG="$LOG_DIR/${JOB_NAME}.out"
         ERR_LOG="$LOG_DIR/${JOB_NAME}.err"
@@ -128,9 +126,11 @@ for sim in "${NUM_SIM_LIST[@]}"; do
 
         WRAP_CMD="cd '$PROJECT_ROOT' && uv run main.py --config '$CONFIG_PATH' ${CLI_ARGS[*]}"
 
-        # Build sbatch command as array to safely include GPU arg tokens
-        SBATCH_CMD=(sbatch --job-name="$JOB_NAME" --output="$OUT_LOG" --error="$ERR_LOG" --partition="$PARTITION")
-        # append GPU tokens if present
+        # Build sbatch command as array to safely include optional partition/gpu tokens
+        SBATCH_CMD=(sbatch --job-name="$JOB_NAME" --output="$OUT_LOG" --error="$ERR_LOG")
+        if [[ -n "$PARTITION" ]]; then
+          SBATCH_CMD+=(--partition="$PARTITION")
+        fi
         if [[ ${#GPU_ARG_TOKENS[@]} -gt 0 && -n "${GPU_ARG_TOKENS[0]}" ]]; then
           SBATCH_CMD+=("${GPU_ARG_TOKENS[@]}")
         fi
@@ -148,7 +148,6 @@ for sim in "${NUM_SIM_LIST[@]}"; do
 
       # no-FT variant (disable player embeddings)
       if [[ "$ONLY_FT" -eq 0 ]]; then
-        count=$((count + 1))
         JOB_NAME="mcts_sim${sim}_c${safe_c}_thr${safe_thr}_noft"
         OUT_LOG="$LOG_DIR/${JOB_NAME}.out"
         ERR_LOG="$LOG_DIR/${JOB_NAME}.err"
@@ -157,15 +156,23 @@ for sim in "${NUM_SIM_LIST[@]}"; do
 
         WRAP_CMD="cd '$PROJECT_ROOT' && uv run main.py --config '$CONFIG_PATH' ${CLI_ARGS[*]}"
 
-        SBATCH_CMD=(sbatch --job-name="$JOB_NAME" --output="$OUT_LOG" --error="$ERR_LOG" --partition="$PARTITION")
+        SBATCH_CMD=(sbatch --job-name="$JOB_NAME" --output="$OUT_LOG" --error="$ERR_LOG")
+        if [[ -n "$PARTITION" ]]; then
+          SBATCH_CMD+=(--partition="$PARTITION")
+        fi
         if [[ ${#GPU_ARG_TOKENS[@]} -gt 0 && -n "${GPU_ARG_TOKENS[0]}" ]]; then
           SBATCH_CMD+=("${GPU_ARG_TOKENS[@]}")
         fi
-        SBATCH_CMD+=(--cpus-per-task=$CPUS_PER_TASK --mem=$MEM --time=$TIME --wrap "${WRAP_CMD[*]}")
+        SBATCH_CMD+=(--cpus-per-task=$CPUS_PER_TASK --mem=$MEM --time=$TIME --wrap "$WRAP_CMD")
 
-        "${SBATCH_CMD[@]}"
-
-        echo "Submitted job #$count: $JOB_NAME"
+        SBATCH_OUT=$("${SBATCH_CMD[@]}" 2>&1)
+        SBATCH_RC=$?
+        if [[ $SBATCH_RC -eq 0 ]]; then
+          echo "Submitted job: $JOB_NAME - sbatch: $SBATCH_OUT"
+          count=$((count + 1))
+        else
+          echo "Failed to submit $JOB_NAME: $SBATCH_OUT" >&2
+        fi
       fi
 
     done
