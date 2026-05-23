@@ -80,6 +80,29 @@ player_training:
   batch_size: 128
   learning_rate: 0.0001
 
+# Configuration for the conditional VAE-GAN used to model player styles.
+# These defaults are sensible starting values and can be overridden in a
+# project-specific YAML file.
+vaegan:
+  embedding_dim: 128
+  latent_dim: 32
+  vocab_size: 4672
+  # board_dim should match the dimensionality of your board vector representation
+  # (e.g. the size produced by `board_to_tensor`). If omitted, the training
+  # scripts should infer this from the data arrays.
+  board_dim: 773
+  output_log_softmax: true
+  # Weights used when composing the combined loss during training (defaults)
+  recon_weight: 1.0
+  beta_kl: 0.05 # Au lieu de 1.0
+  gan_weight: 0.1
+  # Training stability / optimizer settings
+  lr_ge: 0.0001 # learning rate for encoder+generator+player_emb
+  lr_d: 0.0001 # learning rate for the discriminator
+  d_steps_per_g: 1 # number of discriminator steps per generator step
+  kl_warmup_epochs: 10 # epochs to linearly anneal beta_kl from 0->1
+  label_smoothing: 0.0 # smoothing factor (0.0 = no smoothing; 0.1 -> real labels=0.9)
+
 jsd:
   method: "umap"
   kde: false

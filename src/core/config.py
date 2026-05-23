@@ -238,13 +238,38 @@ class DataConfig(BaseModel):
     )
 
 
+class VaeganConfig(BaseModel):
+    """Configuration for the conditional VAE-GAN model used to synthesize
+    player-conditioned move distributions.
+
+    These defaults are intentionally conservative; users may override values
+    in a project-specific YAML file.
+    """
+
+    embedding_dim: int = 128
+    latent_dim: int = 128
+    vocab_size: int = 4672
+    board_dim: int = 773
+    output_log_softmax: bool = True
+    recon_weight: float = 1.0
+    beta_kl: float = 1.0
+    gan_weight: float = 1.0
+
+    # Training stability / optimizer settings
+    lr_ge: float = 1e-4
+    lr_d: float = 1e-4
+    d_steps_per_g: int = 1
+    kl_warmup_epochs: int = 10
+    label_smoothing: float = 0.0
+
+
 class Config(BaseModel):
     """Top-level application configuration model.
 
     Instances of this class aggregate `PathsConfig`, `DataConfig`,
-    `AutoencoderConfig` and `UMAPConfig`. The class method `from_yaml` permits
-    loading overrides from a YAML file; when invoked it also ensures the
-    configured filesystem layout exists on disk.
+    `AutoencoderConfig`, `VaeganConfig` and `UMAPConfig`. The class method
+    `from_yaml` permits loading overrides from a YAML file; when invoked it
+    also ensures the configured filesystem layout exists on disk.
     """
 
     paths: PathsConfig = Field(default_factory=PathsConfig)
@@ -252,6 +277,7 @@ class Config(BaseModel):
     autoencoder: AutoencoderConfig = Field(default_factory=AutoencoderConfig)
     umap: UMAPConfig = Field(default_factory=UMAPConfig)
     player_training: PlayerTrainingConfig = Field(default_factory=PlayerTrainingConfig)
+    vaegan: VaeganConfig = Field(default_factory=VaeganConfig)
     jsd: JSDConfig = Field(default_factory=JSDConfig)
 
     @classmethod

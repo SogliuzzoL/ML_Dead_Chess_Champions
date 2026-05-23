@@ -27,6 +27,7 @@ def main():
             "stats",
             "vectors",
             "autoencoder",
+            "vaegan",
             "umap",
             "evaluate",
             "train_players",
@@ -134,6 +135,12 @@ def main():
 
         logger.info("Commencing autoencoder training routine...")
         run_autoencoder_pipeline(config)
+
+    if args.step == "vaegan":
+        from src.training.train_vaegan import run_vaegan_pipeline
+
+        logger.info("Commencing VAE-GAN training routine...")
+        run_vaegan_pipeline(config)
 
     if args.step == "umap":
         from src.training.train_umap import run_umap_pipeline
