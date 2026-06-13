@@ -94,7 +94,7 @@ class MCTS:
         activ_elo: int | str = 2500,
         opp_elo: int | str = 2500,
     ) -> Tuple[str, Dict[str, float]]:
-        """Run the MCTS search and return the selected root move and root priors.
+        """Run the MCTS search and return the selected root move and root visit distribution.
 
         Algorithmic steps:
          1. Expand the root node using the policy to create initial children.
@@ -111,7 +111,9 @@ class MCTS:
         best_root_move : str
             The UCI string of the move selected at the root.
         result : dict[str, float]
-            Mapping from UCI move to the prior probability assigned at the root.
+            Mapping from UCI move to the normalized visit-probability at the root
+            (visit_count / total_visits). If total visits are zero, all values are
+            returned as 0.0.
         """
         # 1. Initial root expansion using the provided policy/value generator.
         self.root.expand(
@@ -187,5 +189,12 @@ class MCTS:
             probabilities = visits_with_temp / np.sum(visits_with_temp)
             best_root_move = np.random.choice(moves, p=probabilities)
 
-        result = {move: child.maia_prob for move, child in self.root.children.items()}
+        # Convert visit counts into a normalized distribution
+        total_visits = float(visit_counts.sum())
+        if total_visits <= 0:
+            result = {move: 0.0 for move in moves}
+        else:
+            probs = visit_counts / total_visits
+            result = {move: float(p) for move, p in zip(moves, probs)}
+
         return best_root_move, result

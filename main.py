@@ -36,7 +36,9 @@ def main():
             "generate_mcts_heatmaps",
             "tournament",
             "results",
+            "blunders",
             "ui",
+            "openings",
             "visualize",
         ],
         help="Pipeline stage to execute",
@@ -98,6 +100,32 @@ def main():
         type=int,
         default=256,
         help="Batch size used by each worker when calling run_batch",
+    )
+
+    # Blunder analysis / Stockfish parameters (used by the `blunders` step)
+    parser.add_argument(
+        "--blunder-cp-threshold",
+        type=int,
+        default=200,
+        help="Centipawn threshold to consider a move a blunder (default: 200)",
+    )
+    parser.add_argument(
+        "--blunder-depth",
+        type=int,
+        default=None,
+        help="Stockfish analysis depth to use (default: value from config)",
+    )
+    parser.add_argument(
+        "--blunder-subsample-frac",
+        type=float,
+        default=1.0,
+        help="Fraction of test set to analyze for blunders (default: 1.0)",
+    )
+    parser.add_argument(
+        "--blunder-num-workers",
+        type=int,
+        default=None,
+        help="Number of parallel Stockfish workers to spawn (default from config)",
     )
 
     args = parser.parse_args()
@@ -252,11 +280,29 @@ def main():
         logger.info("Computing AE->UMAP->JSD for Maia variants...")
         run_model_jsd_pipeline(config)
 
+    if args.step == "blunders":
+        from src.evaluation.compute_blunders import compute_blunder_rates_stockfish
+
+        logger.info("Commencing Stockfish-based blunder analysis...")
+        compute_blunder_rates_stockfish(
+            config,
+            cp_threshold=args.blunder_cp_threshold,
+            depth=args.blunder_depth,
+            subsample_frac=args.blunder_subsample_frac,
+            num_workers=args.blunder_num_workers,
+        )
+
     if args.step == "ui":
         from src.ui.app import run_ui
 
         logger.info("Launching the web interface...")
         run_ui(config)
+
+    if args.step == "openings":
+        from src.evaluation.compute_openings import compute_openings
+
+        logger.info("Computing openings...")
+        compute_openings(config)
 
     if args.step == "visualize":
         from src.visualization.graphics import (

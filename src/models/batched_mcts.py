@@ -42,9 +42,29 @@ class BatchedMCTSManager:
         self.all_moves_dict, _, self.all_moves_dict_reversed = engine.prepare
 
     def _predict_batch(
-        self, boards: List[chess.Board], active_elos: List[str]
+        self,
+        boards: List[chess.Board],
+        active_elos: List[str],
+        opponent_elo: int | str = 2500,
     ) -> Tuple[List[Dict[str, float]], np.ndarray]:
-        """Evaluates a batch of board positions in a single network pass."""
+        """Evaluates a batch of board positions in a single network pass.
+
+        Parameters
+        ----------
+        boards : list[chess.Board]
+            Boards to evaluate (each board is oriented naturally, function will mirror if needed).
+        active_elos : list[str|int]
+            Active player identifiers for each board (player name or Elo value).
+        opponent_elo : str|int
+            Opponent identifier used to construct opponent style indices (defaults to 2500).
+
+        Returns
+        -------
+        probs_list : list[dict]
+            Per-board mapping from UCI move to probability for legal moves.
+        values : np.ndarray
+            Per-board scalar value estimates.
+        """
         tensors = []
         is_mirrored_list = []
         process_boards = []  # New list to store correctly oriented boards for inference
@@ -65,7 +85,7 @@ class BatchedMCTSManager:
             [self.engine._get_style_idx(elo) for elo in active_elos]
         ).to(self.device, non_blocking=True)
         s_oppo = torch.tensor(
-            [self.engine._get_style_idx(2500) for _ in active_elos]
+            [self.engine._get_style_idx(opponent_elo) for _ in active_elos]
         ).to(self.device, non_blocking=True)
 
         self.engine.model.eval()
@@ -102,8 +122,17 @@ class BatchedMCTSManager:
         active_elos: List[str],
         num_simulations: int = 100,
         temperature: float = 1.0,
+        opponent_elo: int | str = 2500,
     ) -> Tuple[List[str], List[Dict[str, float]]]:
-        """Runs the MCTS algorithm concurrently for a batch of initial positions."""
+        """Runs the MCTS algorithm concurrently for a batch of initial positions.
+
+        Returns a list of best moves and a list of root distributions where each
+        distribution maps a UCI move to the normalized visit-probability (visits / total_visits).
+
+        opponent_elo : int | str
+            Identifier of the opponent style to condition leaf evaluations on
+            (defaults to 2500 to preserve backward compatibility).
+        """
         batch_size = len(fens)
         roots = [BatchedNode() for _ in range(batch_size)]
         boards = [chess.Board(fen) for fen in fens]
@@ -164,7 +193,9 @@ class BatchedMCTSManager:
             # Phase B: Batch evaluation of leaf nodes (network inference)
             if leaf_boards:
                 leaf_elos = [active_elos[idx] for idx in leaf_indices]
-                probs_list, values = self._predict_batch(leaf_boards, leaf_elos)
+                probs_list, values = self._predict_batch(
+                    leaf_boards, leaf_elos, opponent_elo=opponent_elo
+                )
 
                 # Expansion
                 for k, idx in enumerate(leaf_indices):
@@ -211,9 +242,14 @@ class BatchedMCTSManager:
                 probabilities = visits_with_temp / np.sum(visits_with_temp)
                 best_move = np.random.choice(moves, p=probabilities)
 
-            result_probs = {
-                move: child.maia_prob for move, child in roots[i].children.items()
-            }
+            # Convert visit counts to normalized visit-probabilities
+            total_visits = float(visit_counts.sum())
+            if total_visits <= 0:
+                result_probs = {move: 0.0 for move in moves}
+            else:
+                probs = visit_counts / total_visits
+                result_probs = {move: float(p) for move, p in zip(moves, probs)}
+
             best_root_moves.append(best_move)
             root_probs_list.append(result_probs)
 

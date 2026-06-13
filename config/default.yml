@@ -19,6 +19,7 @@ paths:
   umap_model_path: "models/saved/style_umap.pkl"
   champions_embeddings_path: "models/saved/champions_embeddings.pth"
   player_accuracies_path: "results/evaluation/player_accuracies_comparison.parquet"
+  player_blunders_path: "results/evaluation/player_blunders.parquet"
   predictions_path: "results/evaluation/predictions.parquet"
   moves_distribution_graph_path: "results/graphics/moves_distribution.pdf"
   jsd_heatmap_path: "results/graphics/jsd_heatmap.pdf"
@@ -106,3 +107,11 @@ vaegan:
 jsd:
   method: "umap"
   kde: false
+player_blunders_path: "results/evaluation/player_blunders.parquet"
+player_blunders_detailed_path: "results/evaluation/player_blunders_detailed.parquet"
+stockfish:
+  path: "/usr/games/stockfish"
+  depth: 12
+  analysis_time: null
+  num_threads: 1
+  num_workers: 1

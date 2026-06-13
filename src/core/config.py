@@ -36,6 +36,7 @@ class PathsConfig(BaseModel):
     model: str = "models/"
     result: str = "results/"
     evaluation_dir: str = "results/evaluation/"
+    generated_data: str = "data/generated/"
 
     dataset_path: str = "data/processed/dataset.parquet"
     train_set_path: str = "data/processed/train.parquet"
@@ -59,6 +60,10 @@ class PathsConfig(BaseModel):
     learning_curves_path: str = "results/evaluation/learning_curves.parquet"
     player_accuracies_path: str = (
         "results/evaluation/player_accuracies_comparison.parquet"
+    )
+    player_blunders_path: str = "results/evaluation/player_blunders.parquet"
+    player_blunders_detailed_path: str = (
+        "results/evaluation/player_blunders_detailed.parquet"
     )
     predictions_path: str = "results/evaluation/predictions.parquet"
     accuracy_path: str = "results/evaluation/accuracy.parquet"
@@ -263,6 +268,31 @@ class VaeganConfig(BaseModel):
     label_smoothing: float = 0.0
 
 
+class StockfishConfig(BaseModel):
+    """Configuration for Stockfish engine used to label blunders.
+
+    Attributes
+    ----------
+    path : str
+        Filesystem path or executable name for the Stockfish binary (default: "stockfish").
+    depth : int
+        Search depth to use when analysing positions (default: 12).
+    analysis_time : float | None
+        Alternative to depth: number of seconds to spend per analysis. If set,
+        this will be used instead of `depth`.
+    num_threads : int
+        Number of threads to configure for the engine (if supported).
+    num_workers : int
+        Number of parallel worker processes to use when analysing large datasets.
+    """
+
+    path: str = "stockfish"
+    depth: int = 12
+    analysis_time: float | None = None
+    num_threads: int = 1
+    num_workers: int = 1
+
+
 class Config(BaseModel):
     """Top-level application configuration model.
 
@@ -279,6 +309,7 @@ class Config(BaseModel):
     player_training: PlayerTrainingConfig = Field(default_factory=PlayerTrainingConfig)
     vaegan: VaeganConfig = Field(default_factory=VaeganConfig)
     jsd: JSDConfig = Field(default_factory=JSDConfig)
+    stockfish: StockfishConfig = Field(default_factory=StockfishConfig)
 
     @classmethod
     def from_yaml(cls, yaml_path: str) -> "Config":
