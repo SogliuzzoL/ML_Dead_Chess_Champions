@@ -447,7 +447,7 @@ def compute_blunder_rates_stockfish(
             pl.col(f"delta_pred_{variant}").mean().alias(f"{variant}_mean_delta_cp"),
         ]
 
-    df_players = df_moves.groupby("player_name").agg(agg_exprs).sort("player_name")
+    df_players = df_moves.group_by("player_name").agg(agg_exprs).sort("player_name")
 
     out_path = config.paths.player_blunders_path
     df_players.write_parquet(out_path)
