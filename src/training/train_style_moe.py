@@ -62,6 +62,14 @@ class StyleMoEDataset(Dataset):
         # invert players mapping (id -> name) -> (name -> id)
         self.name_to_id: Dict[str, str] = {v: k for k, v in config.data.players.items()}
 
+        # Build an adapter-specific player index mapping (0..N-1). Reserve the
+        # last index for unknown players not present in the config.
+        players_list = list(config.data.players.values())
+        self.player_name_to_idx: Dict[str, int] = {
+            name: idx for idx, name in enumerate(players_list)
+        }
+        self.n_players_adapter: int = len(players_list) + 1
+
         self.raw_root = Path(config.paths.raw_data)
 
         # Use Maia's canonical move vocabulary (prepare returns (all_moves_dict, elo_dict, all_moves_dict_reversed))
@@ -175,6 +183,12 @@ class StyleMoEDataset(Dataset):
         # Normalize move string early to avoid whitespace/newline issues
         move_uci = move_uci.strip().lower()
 
+        # Compute adapter player index (unknown players -> last reserved index)
+        if player_name in self.player_name_to_idx:
+            player_idx = int(self.player_name_to_idx[player_name])
+        else:
+            player_idx = int(self.n_players_adapter - 1)
+
         # Last-K sequence reconstruction
         if player_name not in self.name_to_id:
             # Unknown player mapping -> attempt naive search under raw_root
@@ -258,6 +272,7 @@ class StyleMoEDataset(Dataset):
         return (
             board_tensor,
             seq_flat,
+            torch.tensor(player_idx, dtype=torch.long),
             torch.tensor(active_idx, dtype=torch.long),
             torch.tensor(opponent_idx, dtype=torch.long),
             torch.tensor(move_label, dtype=torch.long),
@@ -276,6 +291,7 @@ def run_training(config: Config) -> None:
     latent_dim = 64
     n_experts = 8
     lora_rank = 8
+    player_emb_dim = 32
     batch_size = 256
     epochs = 5
     lr = 1e-3
@@ -288,6 +304,9 @@ def run_training(config: Config) -> None:
     train_dataset = StyleMoEDataset(
         config.paths.train_set_path, config, seq_len=seq_len
     )
+
+    # Number of adapter player slots (dataset created n_players_adapter)
+    n_players_adapter = train_dataset.n_players_adapter
 
     # Collate function that filters out None-returning samples (dropped during canonicalization)
     from torch.utils.data._utils.collate import default_collate
@@ -319,8 +338,9 @@ def run_training(config: Config) -> None:
     # Use a single batch to infer shapes for adapter construction
     sample_batch = next(iter(train_loader))
     boards_sample = sample_batch[0].to(DEVICE)
-    active_sample = sample_batch[2].to(DEVICE)
-    opponent_sample = sample_batch[3].to(DEVICE)
+    player_sample = sample_batch[2].to(DEVICE)
+    active_sample = sample_batch[3].to(DEVICE)
+    opponent_sample = sample_batch[4].to(DEVICE)
 
     with torch.no_grad():
         logits_sample, v_sample, _ = maia_model(
@@ -343,6 +363,8 @@ def run_training(config: Config) -> None:
         latent_dim=latent_dim,
         n_experts=n_experts,
         lora_rank=lora_rank,
+        n_players=n_players_adapter,
+        player_emb_dim=player_emb_dim,
     ).to(DEVICE)
 
     logger.info(f"Adapter parameter count: {adapter.count_adapter_params():,}")
@@ -401,9 +423,10 @@ def run_training(config: Config) -> None:
                 # Entire batch was filtered out (all examples unmappable); skip
                 continue
 
-            boards, seq_flat, active_ids, opponent_ids, labels, fens = batch
+            boards, seq_flat, player_ids, active_ids, opponent_ids, labels, fens = batch
             boards = boards.to(DEVICE)
             seq_flat = seq_flat.to(DEVICE)
+            player_ids = player_ids.to(DEVICE)
             active_ids = active_ids.to(DEVICE)
             opponent_ids = opponent_ids.to(DEVICE)
             labels = labels.to(DEVICE)
@@ -414,8 +437,10 @@ def run_training(config: Config) -> None:
             with torch.no_grad():
                 logits_maia, v_maia, _ = maia_model(boards, active_ids, opponent_ids)
 
-            # Adapter forward
-            delta_logits, kl_mean, g = adapter(v_maia.detach(), seq_flat, topk=topk)
+            # Adapter forward (condition on player_ids)
+            delta_logits, kl_mean, g = adapter(
+                v_maia.detach(), seq_flat, player_ids=player_ids, topk=topk
+            )
 
             final_logits = logits_maia + delta_logits
 

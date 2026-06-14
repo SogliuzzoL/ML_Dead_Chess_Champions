@@ -49,7 +49,16 @@ def load_adapter_for_inference(config: Config) -> StyleMoE:
     out_dim = logits.size(-1)
     board_dim = board_t.numel() // board_t.size(0)
 
-    adapter = StyleMoE(v_dim=v_dim, out_dim=out_dim, board_dim=board_dim)
+    # Build adapter skeleton with player slots matching configured champions
+    n_players_adapter = len(Config.from_yaml("config/default.yml").data.players) + 1
+    player_emb_dim = 32
+    adapter = StyleMoE(
+        v_dim=v_dim,
+        out_dim=out_dim,
+        board_dim=board_dim,
+        n_players=n_players_adapter,
+        player_emb_dim=player_emb_dim,
+    )
     adapter.load_state_dict(torch.load(save_path, map_location=DEVICE))
     adapter.to(DEVICE)
     adapter.eval()

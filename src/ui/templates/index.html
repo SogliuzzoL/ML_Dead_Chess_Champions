@@ -271,6 +271,14 @@
                         </select>
                     </div>
 
+                    <div class="control-group">
+                        <label>Model:</label>
+                        <select id="modelSelect">
+                            <option value="maia">Maia (baseline)</option>
+                            <option value="style" {% if not style_available %}disabled title="Style adapter not available"{% endif %}>Maia + Style Adapter</option>
+                        </select>
+                    </div>
+
                     <button onclick="startGame()">START GAME</button>
 
                     <div class="button-group">
@@ -391,6 +399,7 @@
                             pgn: game.pgn(),
                             active_elo: isWhite ? $("#eloW").val() : $("#eloB").val(),
                             opponent_elo: isWhite ? $("#eloB").val() : $("#eloW").val(),
+                            model: $("#modelSelect").val(),
                         }),
                     });
 

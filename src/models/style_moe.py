@@ -129,9 +129,13 @@ class LoRAExpert(nn.Module):
 class StyleMoE(nn.Module):
     """Top-level adapter containing a SeqVAE, Router, and N LoRA experts.
 
+    The router can be conditioned on a per-player embedding by setting
+    `n_players` and `player_emb_dim`. The router MLP input then becomes
+    (latent_dim + player_emb_dim).
+
     Usage:
         adapter = StyleMoE(v_dim, out_dim, board_dim=773, seq_len=15, ...)
-        delta_logits, kl, g = adapter(v, seq_inputs)
+        delta_logits, kl, g = adapter(v, seq_inputs, player_ids)
         final_logits = logits_maia + delta_logits
     """
 
@@ -145,6 +149,8 @@ class StyleMoE(nn.Module):
         n_experts: int = 8,
         lora_rank: int = 8,
         router_hidden: int = 128,
+        n_players: int = 0,
+        player_emb_dim: int = 32,
     ) -> None:
         super().__init__()
         self.v_dim = v_dim
@@ -154,8 +160,20 @@ class StyleMoE(nn.Module):
         self.latent_dim = latent_dim
         self.n_experts = n_experts
 
+        # Optional per-player embedding used to condition the router
+        self.n_players = max(0, int(n_players))
+        self.player_emb_dim = int(player_emb_dim) if self.n_players > 0 else 0
+        if self.n_players > 0:
+            self.player_emb = nn.Embedding(self.n_players, self.player_emb_dim)
+        else:
+            self.player_emb = None
+
+        # Router input dim = latent + player_emb (if present)
+        router_input_dim = self.latent_dim + (
+            self.player_emb_dim if self.player_emb is not None else 0
+        )
         self.vae = SeqVAE(board_dim=board_dim, seq_len=seq_len, latent_dim=latent_dim)
-        self.router = Router(latent_dim, n_experts, hidden=router_hidden)
+        self.router = Router(router_input_dim, n_experts, hidden=router_hidden)
         self.experts = nn.ModuleList(
             [
                 LoRAExpert(v_dim=v_dim, out_dim=out_dim, rank=lora_rank)
@@ -167,6 +185,7 @@ class StyleMoE(nn.Module):
         self,
         v: torch.Tensor,
         seq_inputs: torch.Tensor,
+        player_ids: Optional[torch.LongTensor] = None,
         temp: float = 1.0,
         topk: Optional[int] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -175,6 +194,7 @@ class StyleMoE(nn.Module):
         Parameters
         - v: Maia hidden vector [B, v_dim] (detached; Maia trunk is frozen)
         - seq_inputs: flattened sequence input [B, seq_len * board_dim]
+        - player_ids: optional LongTensor [B] of player indices for conditioning
         - temp: softmax temperature for router
         - topk: if set, sparsify gating to top-k experts
 
@@ -187,8 +207,15 @@ class StyleMoE(nn.Module):
         mu, logvar = self.vae(seq_inputs)
         z = SeqVAE.reparameterize(mu, logvar)
 
+        # Prepare router input (optionally conditioned on player embedding)
+        if player_ids is not None and self.player_emb is not None:
+            p_emb = self.player_emb(player_ids)
+            router_in = torch.cat([z, p_emb], dim=-1)
+        else:
+            router_in = z
+
         # Router -> gating
-        g = self.router(z, temp=temp, topk=topk)  # [B, M]
+        g = self.router(router_in, temp=temp, topk=topk)  # [B, M]
 
         # Experts: compute deltas
         # compute per-expert outputs [B, out_dim] and stack
@@ -216,6 +243,8 @@ def build_adapter_from_maia_sample(
     latent_dim: int = 64,
     n_experts: int = 8,
     lora_rank: int = 8,
+    n_players: int = 0,
+    player_emb_dim: int = 32,
 ) -> StyleMoE:
     """Run a single forward through Maia to infer v_dim and out_dim and build an adapter.
 
@@ -228,11 +257,11 @@ def build_adapter_from_maia_sample(
     import torch
     from maia2.utils import board_to_tensor
 
-    device = (
-        next(maia_model.parameters()).device
-        if any(p.requires_grad for p in maia_model.parameters())
-        else torch.device("cpu")
-    )
+    try:
+        # Infer device from the model's parameters (works even if requires_grad is False)
+        device = next(maia_model.parameters()).device
+    except StopIteration:
+        device = torch.device("cpu")
 
     # Create a starting board tensor
     b = chess.Board()
@@ -257,5 +286,7 @@ def build_adapter_from_maia_sample(
         latent_dim=latent_dim,
         n_experts=n_experts,
         lora_rank=lora_rank,
+        n_players=n_players,
+        player_emb_dim=player_emb_dim,
     )
     return adapter
