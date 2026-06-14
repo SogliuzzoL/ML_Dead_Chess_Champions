@@ -31,12 +31,14 @@ def main():
             "umap",
             "evaluate",
             "train_players",
+            "train_style_moe",
             "evaluate_players",
             "evaluate_mcts_params",
             "generate_mcts_heatmaps",
             "tournament",
             "results",
             "blunders",
+            "predict_style_moe",
             "ui",
             "openings",
             "visualize",
@@ -201,6 +203,12 @@ def main():
         logger.info("Commencing player embedding training routine...")
         run_training(config)
 
+    if args.step == "train_style_moe":
+        from src.training.train_style_moe import run_training as run_style_moe_training
+
+        logger.info("Commencing Style MoE adapter training routine...")
+        run_style_moe_training(config)
+
     if args.step == "evaluate_players":
         from src.evaluation.evaluate_players import evaluate_players
 
@@ -291,6 +299,12 @@ def main():
             subsample_frac=args.blunder_subsample_frac,
             num_workers=args.blunder_num_workers,
         )
+
+    if args.step == "predict_style_moe":
+        from src.training.predict_style_moe import run_inference_demo
+
+        logger.info("Running Style MoE inference demo on test set...")
+        run_inference_demo(config)
 
     if args.step == "ui":
         from src.ui.app import run_ui
